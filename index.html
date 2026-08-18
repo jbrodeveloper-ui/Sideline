@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b1220">
+<title>Sideline — Soccer Subs</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+<style>
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#eef2f7; --card:#fff; --card2:#f6f8fc; --line:#d9e1ee;
+  --txt:#0d1730; --dim:#5d6d88; --faint:#8494ad;
+  --green:#12803f; --greenbg:#e4f7ec;
+  --amber:#a45c07; --amberbg:#fdf1dd;
+  --red:#c81e2b; --redbg:#fde8e9;
+  --blue:#1a4fd6; --bluebg:#e6edff;
+  --shadow:0 1px 2px rgba(13,23,48,.07),0 4px 14px rgba(13,23,48,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#080e1c; --card:#131d33; --card2:#0f1830; --line:#26314f;
+    --txt:#eaf0ff; --dim:#94a4c4; --faint:#6c7d9d;
+    --green:#3ddc84; --greenbg:#0f2f22;
+    --amber:#ffb02e; --amberbg:#33240a;
+    --red:#ff6b6b; --redbg:#3a1418;
+    --blue:#7aa2ff; --bluebg:#132347;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
+  }
+}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--txt);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+  -webkit-text-size-adjust:100%;overscroll-behavior-y:contain;
+  padding-top:env(safe-area-inset-top);
+}
+.wrap{max-width:600px;margin:0 auto;padding:0 12px calc(40px + env(safe-area-inset-bottom))}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- top nav ---------- */
+.nav{display:flex;gap:6px;padding:10px 0 8px;position:sticky;top:0;background:var(--bg);z-index:20}
+.nav button{
+  flex:1;padding:11px 8px;border:1px solid var(--line);background:var(--card);color:var(--dim);
+  font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:11px;
+}
+.nav button.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
+
+/* ---------- hero ---------- */
+.hero{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:16px 16px 14px;box-shadow:var(--shadow);text-align:center;position:relative;overflow:hidden;
+}
+.hero.warn{border-color:var(--amber);background:var(--amberbg)}
+.hero.over{border-color:var(--red);background:var(--redbg);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,30,43,0)}50%{box-shadow:0 0 0 7px rgba(200,30,43,.16)}}
+.hero-lab{font-size:12px;font-weight:800;letter-spacing:.13em;color:var(--dim);text-transform:uppercase}
+.hero.warn .hero-lab{color:var(--amber)}
+.hero.over .hero-lab{color:var(--red)}
+.hero-time{font-size:70px;line-height:1;font-weight:800;letter-spacing:-.03em;margin:6px 0 2px}
+.hero.over .hero-time{color:var(--red)}
+.hero-meta{font-size:13px;color:var(--dim);display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:6px}
+.hero-meta b{color:var(--txt);font-weight:700}
+
+/* ---------- buttons ---------- */
+.btns{display:flex;gap:8px;margin-top:12px}
+.btn{
+  flex:1;padding:15px 10px;border-radius:13px;border:1px solid var(--line);background:var(--card);
+  color:var(--txt);font-size:15px;font-weight:700;box-shadow:var(--shadow);
+}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:var(--green);border-color:var(--green);color:#fff}
+.btn.stop{background:var(--card);color:var(--txt)}
+.btn.hot{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.ghost{box-shadow:none;background:transparent;color:var(--dim);font-weight:600}
+.btn.sm{padding:10px 12px;font-size:14px;flex:0 0 auto}
+.btn:disabled{opacity:.4}
+@media (prefers-color-scheme:dark){.btn.pri,.btn.hot{color:#08101f}}
+
+/* ---------- throw-in / kickoff turns ---------- */
+.turns{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.turn{border-radius:15px;padding:11px 12px;display:flex;align-items:center;gap:10px;border:1px solid}
+.turn.thr {background:var(--bluebg); border-color:var(--blue)}
+.turn.kick{background:var(--greenbg);border-color:var(--green)}
+.turn .ico{font-size:23px;line-height:1;flex:0 0 auto}
+.turn .who{flex:1;min-width:0}
+.turn .lab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.turn.thr  .lab{color:var(--blue)}
+.turn.kick .lab{color:var(--green)}
+.turn .nm{font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.15;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.turn .sub{font-size:11.5px;color:var(--dim);margin-top:1px;
+           white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.turn .acts{display:flex;gap:6px;flex:0 0 auto}
+.turn .acts button{border-radius:10px;border:1px solid;font-weight:800;font-size:13.5px;
+                   padding:11px 11px;white-space:nowrap;color:#fff}
+.turn.thr  .acts button{background:var(--blue); border-color:var(--blue)}
+.turn.kick .acts button{background:var(--green);border-color:var(--green)}
+.turn .acts button.alt{background:transparent;font-weight:700}
+.turn.thr  .acts button.alt{color:var(--blue)}
+.turn.kick .acts button.alt{color:var(--green)}
+.turn .acts button:disabled{opacity:.45}
+@media (prefers-color-scheme:dark){.turn .acts button{color:#08101f}
+  .turn .acts button.alt{color:var(--blue)} .turn.kick .acts button.alt{color:var(--green)}}
+
+/* ---------- section headers ---------- */
+.sec{display:flex;align-items:baseline;gap:8px;margin:20px 2px 8px}
+.sec h2{font-size:13px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin:0;color:var(--dim)}
+.sec .cnt{font-size:13px;font-weight:700;color:var(--faint);margin-left:auto}
+.sec .cnt.bad{color:var(--amber)}
+
+/* ---------- player rows ---------- */
+.list{display:flex;flex-direction:column;gap:7px}
+.row{
+  width:100%;display:flex;align-items:center;gap:11px;text-align:left;
+  background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
+  border-radius:13px;padding:12px 13px;min-height:62px;box-shadow:var(--shadow);color:var(--txt);
+  font-family:inherit;font-size:16px;
+}
+.row:active{transform:scale(.99)}
+.row.field{border-left-color:var(--green)}
+.row.bench{border-left-color:var(--amber)}
+.row.sel{border-color:var(--blue);border-left-color:var(--blue);background:var(--bluebg);
+         box-shadow:0 0 0 3px rgba(26,79,214,.18)}
+.jersey{
+  flex:0 0 34px;height:34px;border-radius:9px;background:var(--card2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--dim);
+}
+.info{flex:1;min-width:0}
+.name{font-size:17px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:12px;color:var(--dim);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;
+     border-radius:5px;font-style:normal;white-space:nowrap}
+.tag.off{background:var(--redbg);color:var(--red)}
+.tag.on{background:var(--greenbg);color:var(--green)}
+.tag.ti{background:var(--bluebg);color:var(--blue)}
+.clock{flex:0 0 auto;text-align:right}
+.clock b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.clock em{display:block;font-size:10px;font-style:normal;color:var(--faint);text-transform:uppercase;
+          letter-spacing:.07em;margin-top:1px}
+.row.field .clock b{color:var(--green)}
+.row.bench .clock b{color:var(--amber)}
+
+/* ---------- selection bar ---------- */
+.selbar{
+  position:sticky;bottom:0;z-index:15;margin:10px -12px 0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--card);border-top:1px solid var(--blue);display:flex;gap:8px;align-items:center;
+  box-shadow:0 -6px 20px rgba(13,23,48,.12);
+}
+.selbar .txt{flex:1;font-size:13px;line-height:1.25;color:var(--dim)}
+.selbar .txt b{display:block;color:var(--txt);font-size:15px}
+
+/* ---------- team view ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;
+      box-shadow:var(--shadow);margin-bottom:12px}
+.card h3{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.addrow{display:flex;gap:7px}
+input,select{
+  font:inherit;font-size:16px;padding:12px;border-radius:11px;border:1px solid var(--line);
+  background:var(--card2);color:var(--txt);width:100%;min-width:0;
+}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.addrow input.n{flex:0 0 68px}
+.addrow button{flex:0 0 auto;padding:12px 16px;border-radius:11px;border:1px solid var(--green);
+               background:var(--green);color:#fff;font-weight:800;font-size:15px}
+@media (prefers-color-scheme:dark){.addrow button{color:#08101f}}
+.prow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.prow .info{flex:1}
+.prow .name{font-size:16px}
+.prow.out .name,.prow.out .jersey{opacity:.42}
+.chip{border:1px solid var(--line);background:var(--card2);color:var(--dim);border-radius:20px;
+      padding:8px 14px;font-size:13px;font-weight:800;white-space:nowrap}
+.chip.here{background:var(--greenbg);border-color:var(--green);color:var(--green)}
+.chip.away{background:var(--redbg);border-color:var(--red);color:var(--red)}
+.x{border:0;background:transparent;color:var(--faint);font-size:20px;padding:6px 4px;line-height:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fld label{display:block;font-size:12px;font-weight:700;color:var(--dim);margin-bottom:5px;
+           text-transform:uppercase;letter-spacing:.06em}
+.mrow{display:flex;align-items:center;gap:10px;padding:7px 0}
+.mbar{flex:1;height:9px;border-radius:5px;background:var(--card2);overflow:hidden;border:1px solid var(--line)}
+.mbar i{display:block;height:100%;background:var(--green);border-radius:5px}
+.mrow .mn{flex:0 0 108px;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .mt{flex:0 0 52px;text-align:right;font-size:14px;font-weight:800}
+.empty{text-align:center;color:var(--faint);font-size:14px;padding:22px 12px;line-height:1.5}
+.hint{font-size:12.5px;color:var(--faint);line-height:1.5;margin-top:8px}
+.hr{height:1px;background:var(--line);margin:14px 0}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));
+  background:var(--txt);color:var(--bg);padding:12px 14px;border-radius:13px;font-size:14px;font-weight:600;
+  display:flex;align-items:center;gap:12px;z-index:60;max-width:calc(100% - 24px);
+  box-shadow:0 8px 26px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .16s,transform .16s;
+}
+.toast.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.toast button{background:transparent;border:1px solid currentColor;color:inherit;border-radius:9px;
+              padding:7px 12px;font-weight:800;font-size:13px;white-space:nowrap}
+.hide{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <button id="tabGame" class="on">⚽ Game</button>
+    <button id="tabTeam">👥 Team</button>
+  </nav>
+
+  <!-- ================= GAME ================= -->
+  <section id="viewGame">
+
+    <div class="hero" id="hero">
+      <div class="hero-lab" id="heroLab">Next sub in</div>
+      <div class="hero-time num" id="heroTime">5:00</div>
+      <div class="hero-meta">
+        <span id="metaHalf">1st half</span>
+        <span>·</span>
+        <span>Clock <b class="num" id="metaClock">0:00</b></span>
+        <span>·</span>
+        <span>Shift <b class="num" id="metaShift">1</b></span>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn pri" id="btnPlay">▶︎ Start 1st half</button>
+      <button class="btn hot" id="btnAuto">⇄ Sub now</button>
+    </div>
+    <div class="btns">
+      <button class="btn ghost sm" id="btnResetShift" style="flex:1">↻ Restart shift timer</button>
+      <button class="btn ghost sm" id="btnUndo" style="flex:1">↶ Undo</button>
+    </div>
+
+    <div class="turns">
+      <div class="turn thr">
+        <div class="ico">🙌</div>
+        <div class="who">
+          <div class="lab">Next throw-in</div>
+          <div class="nm" id="thrName">—</div>
+          <div class="sub" id="thrSub">Add players to get started</div>
+        </div>
+        <div class="acts">
+          <button id="btnThrTook">Took it</button>
+          <button id="btnThrSkip" class="alt">Skip</button>
+        </div>
+      </div>
+      <div class="turn kick">
+        <div class="ico">⚽️</div>
+        <div class="who">
+          <div class="lab">Next kickoff</div>
+          <div class="nm" id="kickName">—</div>
+          <div class="sub" id="kickSub">Add players to get started</div>
+        </div>
+        <div class="acts">
+          <button id="btnKickTook">Took it</button>
+          <button id="btnKickSkip" class="alt">Skip</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec"><h2>On the field</h2><span class="cnt" id="fieldCnt">0 / 7</span></div>
+    <div class="list" id="fieldList"></div>
+
+    <div class="sec"><h2>Resting</h2><span class="cnt" id="benchCnt">0</span></div>
+    <div class="list" id="benchList"></div>
+
+    <div class="selbar hide" id="selBar">
+      <div class="txt"><b id="selName">—</b><span id="selHint">Tap someone to swap</span></div>
+      <button class="btn sm" id="btnMove">Move</button>
+      <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ================= TEAM ================= -->
+  <section id="viewTeam" class="hide">
+    <div class="card">
+      <h3>Add a player</h3>
+      <div class="addrow">
+        <input class="n num" id="inNum" type="text" inputmode="numeric" placeholder="#" maxlength="3" autocomplete="off">
+        <input id="inName" type="text" placeholder="Player name" autocomplete="off" enterkeyhint="done">
+        <button id="btnAdd">Add</button>
+      </div>
+      <div class="hint">Tap <b>Here</b> / <b>Out</b> to set who showed up today. Players marked Out are skipped by subs and throw-ins.</div>
+    </div>
+
+    <div class="card">
+      <h3>Roster <span id="rosterCnt" style="float:right;font-weight:700"></span></h3>
+      <div id="rosterList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Minutes played</h3>
+      <div id="minutesList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Game settings</h3>
+      <div class="grid2">
+        <div class="fld"><label>Shift length (min)</label>
+          <input id="setShift" type="number" inputmode="decimal" min="0.5" max="45" step="0.5"></div>
+        <div class="fld"><label>Half length (min)</label>
+          <input id="setHalf" type="number" inputmode="numeric" min="1" max="60" step="1"></div>
+        <div class="fld"><label>Players on field</label>
+          <input id="setSize" type="number" inputmode="numeric" min="1" max="11" step="1"></div>
+        <div class="fld"><label>Subs per shift</label>
+          <input id="setSubs" type="number" inputmode="numeric" min="1" max="11" step="1"></div>
+      </div>
+      <div class="hint">“Subs per shift” is how many players <b>Sub now</b> swaps at once.</div>
+      <div class="hr"></div>
+      <div class="btns">
+        <button class="btn" id="btnNewGame">New game</button>
+        <button class="btn ghost" id="btnWipe">Erase everything</button>
+      </div>
+      <div class="hint">New game clears clocks, throw-in turns and the field, and keeps your roster.</div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastBtn" class="hide">Undo</button></div>
+
+<script>
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var KEY = "sideline.v2";
+
+/* ============================ state ============================ */
+var DEF = {
+  roster: [],        // [{id,name,num}]
+  out: [],           // ids marked absent today
+  field: [],         // ids currently on the field
+  bench: [],         // ids currently resting
+  play: {},          // id -> total seconds on field this game
+  rest: {},          // id -> total seconds resting this game
+  stint:{},          // id -> seconds in current group (field or bench)
+  thr:  {},          // id -> throw-ins taken
+  seq:  {},          // id -> order marker of last throw-in (0 = never)
+  seqN: 0,
+  skip: [],          // ids skipped for the current throw-in
+  kick: {},          // id -> kickoffs taken
+  kseq: {},          // id -> order marker of last kickoff (0 = never)
+  kseqN:0,
+  kskip:[],          // ids skipped for the current kickoff
+  gameSec: 0, halfSec: 0, half: 1, halves: 2,
+  shiftLen: 300, shiftSec: 300, shiftNo: 1,
+  halfLen: 25, fieldSize: 7, subsPer: 3,
+  running: false, alerted: false, nag: 0,
+  phase: "pre"       // pre | play | halftime | full
+};
+var S = JSON.parse(JSON.stringify(DEF));
+var sel = null;              // {id, from:'field'|'bench'}
+var undoStack = [];
+var lastTs = Date.now();
+
+/* ============================ storage ============================ */
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return;
+    var p = JSON.parse(raw);
+    for(var k in DEF){ if(p[k] !== undefined) S[k] = p[k]; }
+    S.running = false;                       // never resume time that passed while closed
+    if(S.phase === "play" && S.gameSec > 0) S.phase = "play";
+  }catch(e){}
+}
+
+/* ============================ helpers ============================ */
+function mmss(s){
+  s = Math.max(0, Math.floor(s));
+  var m = Math.floor(s/60), r = s%60;
+  return m + ":" + (r<10?"0":"") + r;
+}
+function P(id){ for(var i=0;i<S.roster.length;i++){ if(S.roster[i].id===id) return S.roster[i]; } return null; }
+function nameOf(id){ var p = P(id); return p ? p.name : "?"; }
+function isOut(id){ return S.out.indexOf(id) !== -1; }
+function benchIn(){ return S.bench.filter(function(id){ return !isOut(id); }); }
+function pull(arr, id){ var i = arr.indexOf(id); if(i !== -1) arr.splice(i,1); }
+
+/* ---- one-level-deep undo of "who is where" (clocks keep running) ---- */
+function snap(){
+  undoStack.push(JSON.stringify({
+    field:S.field, bench:S.bench, stint:S.stint,
+    thr:S.thr,   seq:S.seq,   seqN:S.seqN,   skip:S.skip,
+    kick:S.kick, kseq:S.kseq, kseqN:S.kseqN, kskip:S.kskip
+  }));
+  if(undoStack.length > 25) undoStack.shift();
+}
+function undo(){
+  if(!undoStack.length){ toast("Nothing to undo"); return; }
+  var o = JSON.parse(undoStack.pop());
+  S.field=o.field; S.bench=o.bench; S.stint=o.stint;
+  S.thr=o.thr;   S.seq=o.seq;   S.seqN=o.seqN;   S.skip=o.skip;
+  S.kick=o.kick; S.kseq=o.kseq; S.kseqN=o.kseqN; S.kskip=o.kskip;
+  sel = null; render(); save(); toast("Undone");
+}
+
+/* ============================ alerts ============================ */
+var ac = null;
+function audio(){
+  try{
+    if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if(ac.state === "suspended") ac.resume();
+  }catch(e){}
+}
+function beep(n){
+  audio();
+  try{
+    var t = ac.currentTime + 0.02;
+    for(var i=0;i<n;i++){
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = "triangle";
+      o.frequency.value = (i === n-1) ? 1175 : 880;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.4, t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.30);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t+0.32);
+      t += 0.40;
+    }
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([260,130,260,130,420]); }catch(e){}
+}
+
+/* ---- keep the screen awake while the clock runs ---- */
+var wl = null;
+function wake(on){
+  try{
+    if(on && !wl && navigator.wakeLock){
+      navigator.wakeLock.request("screen").then(function(s){
+        wl = s; s.addEventListener("release", function(){ wl = null; });
+      }, function(){});
+    } else if(!on && wl){ wl.release(); wl = null; }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible"){ lastTs = Date.now(); if(S.running) wake(true); }
+});
+
+/* ============================ toast ============================ */
+var toastT = null;
+function toast(msg, label, fn){
+  $("toastMsg").textContent = msg;
+  var b = $("toastBtn");
+  if(fn){ b.textContent = label; b.classList.remove("hide"); b.onclick = function(){ hideToast(); fn(); }; }
+  else { b.classList.add("hide"); b.onclick = null; }
+  $("toast").classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(hideToast, fn ? 6500 : 2600);
+}
+function hideToast(){ $("toast").classList.remove("show"); }
+
+/* ============================ clock ============================ */
+function tick(){
+  var now = Date.now();
+  var dt = (now - lastTs) / 1000;
+  lastTs = now;
+  if(dt < 0 || dt > 3600) dt = 0;
+
+  if(S.running && S.phase === "play"){
+    S.gameSec  += dt;
+    S.halfSec  += dt;
+    S.shiftSec -= dt;
+
+    var i, id;
+    for(i=0;i<S.field.length;i++){ id=S.field[i]; S.play[id]=(S.play[id]||0)+dt; S.stint[id]=(S.stint[id]||0)+dt; }
+    for(i=0;i<S.bench.length;i++){ id=S.bench[i]; if(isOut(id)) continue;
+      S.rest[id]=(S.rest[id]||0)+dt; S.stint[id]=(S.stint[id]||0)+dt; }
+
+    if(S.shiftSec <= 0){
+      if(!S.alerted){
+        S.alerted = true; S.nag = 0;
+        beep(3);
+        toast("⏰ Time to sub — tap “Sub now”");
+      } else if((-S.shiftSec) - S.nag >= 30){    // still nobody subbed — remind again
+        S.nag = Math.floor((-S.shiftSec) / 30) * 30;
+        beep(2);
+      }
+    }
+    if(S.halfSec >= S.halfLen*60){
+      S.running = false; wake(false);
+      if(S.half >= S.halves){ S.phase = "full"; beep(5); toast("🏁 Full time"); }
+      else { S.phase = "halftime"; beep(4); toast("☕️ Halftime"); }
+      render(); save();
+      return;
+    }
+    if(Math.floor(S.gameSec) % 10 === 0) save();
+  }
+  paint();
+}
+
+/* ============================ moves ============================ */
+function moveTo(id, dest){
+  pull(S.field, id); pull(S.bench, id);
+  (dest === "field" ? S.field : S.bench).push(id);
+  S.stint[id] = 0;
+  S.skip = []; S.kskip = [];      // a sub ends whatever throw-in/kickoff was pending
+}
+function swap(offId, onId){ moveTo(offId, "bench"); moveTo(onId, "field"); }
+
+function resetShift(quiet){
+  S.shiftSec = S.shiftLen;
+  S.alerted = false; S.nag = 0;
+  S.shiftNo++;
+  if(!quiet) toast("Shift timer restarted");
+}
+
+function autoSub(){
+  var offPool = S.field.slice().sort(function(a,b){ return (S.play[b]||0) - (S.play[a]||0); });
+  var onPool  = benchIn().sort(function(a,b){ return (S.rest[b]||0) - (S.rest[a]||0); });
+  var n = Math.min(S.subsPer, offPool.length, onPool.length);
+
+  if(!n){
+    if(!onPool.length) toast(S.bench.length ? "Everyone on the bench is marked Out" : "Nobody is resting to sub in");
+    else toast("Nobody is on the field yet");
+    return;
+  }
+  snap();
+  var pairs = [];
+  for(var i=0;i<n;i++){
+    swap(offPool[i], onPool[i]);
+    pairs.push(nameOf(onPool[i]) + " ⇢ in, " + nameOf(offPool[i]) + " ⇢ out");
+  }
+  resetShift(true);
+  sel = null; render(); save();
+  toast(n === 1 ? pairs[0] : n + " subs made", "Undo", undo);
+}
+
+/* ============================ throw-ins ============================ */
+/* Two rotations, same rules. K describes each one so they can't drift apart. */
+var KINDS = {
+  thr:  { n:"thr",  seq:"seq",  seqN:"seqN",  skip:"skip",  verb:"throw-in", past:"took the throw-in", none:"Hasn\u2019t thrown in yet" },
+  kick: { n:"kick", seq:"kseq", seqN:"kseqN", skip:"kskip", verb:"kickoff",  past:"took the kickoff",  none:"Hasn\u2019t kicked off yet" }
+};
+
+/* The whole queue, best pick first. Only players on the field are eligible —
+   a resting player keeps their place and jumps back in line the moment they return. */
+function queueFor(k){
+  var K = KINDS[k];
+  var pool = S.field.filter(function(id){ return !isOut(id); });
+  var live = pool.filter(function(id){ return S[K.skip].indexOf(id) === -1; });
+  if(!live.length) live = pool;                    // everyone skipped — start the round over
+  return live.slice().sort(function(a,b){
+    return ((S[K.n][a]   ||0) - (S[K.n][b]   ||0))   // 1. fewest turns taken
+        || ((S[K.seq][a] ||0) - (S[K.seq][b] ||0))   // 2. longest since their last turn (never = first)
+        || ((S.play[a]   ||0) - (S.play[b]   ||0))   // 3. least game time — the kid who just came on
+        || 0;
+  });
+}
+function nextUp(k){ var q = queueFor(k); return q.length ? q[0] : null; }
+
+function tookTurn(k){
+  var K = KINDS[k], id = nextUp(k);
+  if(!id){ toast("No one is on the field"); return; }
+  snap();
+  S[K.n][id]   = (S[K.n][id] || 0) + 1;
+  S[K.seq][id] = ++S[K.seqN];
+  S[K.skip]    = [];
+  render(); save();
+  toast(nameOf(id) + " " + K.past, "Undo", undo);
+}
+function skipTurn(k){
+  var K = KINDS[k], id = nextUp(k);
+  if(!id) return;
+  snap();
+  if(S[K.skip].indexOf(id) === -1) S[K.skip].push(id);
+  render(); save();
+  toast("Skipped " + nameOf(id) + " for the " + K.verb);
+}
+
+/* ============================ rendering ============================ */
+function heroState(){
+  if(S.phase === "pre")      return { lab:"Ready",     time:mmss(S.shiftLen), cls:"" };
+  if(S.phase === "halftime") return { lab:"Halftime",  time:mmss(0),          cls:"warn" };
+  if(S.phase === "full")     return { lab:"Full time", time:mmss(0),          cls:"" };
+  if(S.shiftSec <= 0)        return { lab:"Sub now — over by", time:mmss(-S.shiftSec), cls:"over" };
+  if(S.shiftSec <= 30)       return { lab:"Next sub in", time:mmss(S.shiftSec), cls:"warn" };
+  return { lab:"Next sub in", time:mmss(S.shiftSec), cls:"" };
+}
+
+function paint(){   /* cheap, runs 4x a second — only touches numbers */
+  var h = heroState();
+  $("heroTime").textContent = h.time;
+  $("heroLab").textContent  = h.lab;
+  $("hero").className = "hero " + h.cls;
+  $("metaClock").textContent = mmss(S.halfSec);
+  $("metaShift").textContent = S.shiftNo;
+  $("metaHalf").textContent  = S.phase === "full" ? "Game over"
+                             : S.phase === "halftime" ? "Halftime"
+                             : (S.half === 1 ? "1st half" : "2nd half");
+  var els = document.querySelectorAll("[data-t]"), i, parts, v;
+  for(i=0;i<els.length;i++){
+    parts = els[i].getAttribute("data-t").split(":");
+    v = parts[0] === "s" ? (S.stint[parts[1]]||0)
+      : parts[0] === "p" ? (S.play[parts[1]]||0)
+      : (S.rest[parts[1]]||0);
+    els[i].textContent = mmss(v);
+  }
+}
+
+function playerRow(id, where, rank){
+  var p = P(id) || {name:"?", num:""};
+  var b = document.createElement("button");
+  b.className = "row " + where + (sel && sel.id === id ? " sel" : "");
+  b.setAttribute("data-id", id);
+
+  var tags = "";
+  if(rank === 0 && where === "field") tags += '<i class="tag off">next off</i>';
+  if(rank === 0 && where === "bench") tags += '<i class="tag on">next on</i>';
+  var t = S.thr[id] || 0;
+  tags += '<i class="tag ti">🙌 ' + t + '  ⚽️ ' + (S.kick[id] || 0) + '</i>';
+
+  b.innerHTML =
+    '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
+    '<span class="info">' +
+      '<span class="name">' + esc(p.name) + '</span>' +
+      '<span class="meta">' + tags +
+        '<span>Played <b class="num" data-t="p:' + id + '">0:00</b></span>' +
+      '</span>' +
+    '</span>' +
+    '<span class="clock">' +
+      '<b class="num" data-t="s:' + id + '">0:00</b>' +
+      '<em>' + (where === "field" ? "on field" : "resting") + '</em>' +
+    '</span>';
+  return b;
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+function render(){
+  /* ---- buttons ---- */
+  var pb = $("btnPlay");
+  if(S.phase === "pre")           pb.textContent = "▶︎ Start 1st half";
+  else if(S.phase === "halftime") pb.textContent = "▶︎ Start 2nd half";
+  else if(S.phase === "full")     pb.textContent = "↻ New game";
+  else                            pb.textContent = S.running ? "❚❚ Pause" : "▶︎ Resume";
+  pb.className = "btn " + (S.running ? "stop" : "pri");
+  $("btnUndo").disabled = undoStack.length === 0;
+
+  /* ---- throw-in + kickoff rows ---- */
+  renderTurn("thr", "thrName", "thrSub", "btnThrTook", "btnThrSkip");
+  renderTurn("kick", "kickName", "kickSub", "btnKickTook", "btnKickSkip");
+
+  /* ---- field ---- */
+  var fl = $("fieldList"); fl.innerHTML = "";
+  var f = S.field.slice().sort(function(a,b){ return (S.play[b]||0) - (S.play[a]||0); });
+  if(!f.length){
+    fl.innerHTML = '<div class="empty">Nobody on the field yet.<br>Tap a resting player below to send them on.</div>';
+  } else {
+    for(var i=0;i<f.length;i++) fl.appendChild(playerRow(f[i], "field", i));
+  }
+  var fc = $("fieldCnt");
+  fc.textContent = S.field.length + " / " + S.fieldSize;
+  fc.className = "cnt" + (S.field.length === S.fieldSize ? "" : " bad");
+
+  /* ---- bench ---- */
+  var bl = $("benchList"); bl.innerHTML = "";
+  var bn = benchIn().sort(function(a,b){ return (S.rest[b]||0) - (S.rest[a]||0); });
+  if(!bn.length){
+    bl.innerHTML = '<div class="empty">' +
+      (S.roster.length ? "Nobody resting." : "No players yet — add your team on the Team tab.") + '</div>';
+  } else {
+    for(var j=0;j<bn.length;j++) bl.appendChild(playerRow(bn[j], "bench", j));
+  }
+  $("benchCnt").textContent = bn.length + (S.out.length ? " · " + S.out.length + " out" : "");
+
+  /* ---- selection bar ---- */
+  var sb = $("selBar");
+  if(sel){
+    sb.classList.remove("hide");
+    $("selName").textContent = nameOf(sel.id);
+    $("selHint").textContent = sel.from === "field"
+      ? "Tap a resting player to swap them in"
+      : "Tap a player on the field to swap them out";
+    $("btnMove").textContent = sel.from === "field" ? "Just take off" : "Just send on";
+  } else sb.classList.add("hide");
+
+  renderTeam();
+  paint();
+}
+
+function renderTurn(k, nameId, subId, tookId, skipId){
+  var K = KINDS[k], q = queueFor(k), id = q.length ? q[0] : null;
+  if(id){
+    var c = S[K.n][id] || 0;
+    var after = q.slice(1, 3).map(nameOf).join(", ");
+    $(nameId).textContent = nameOf(id);
+    $(subId).textContent  = (c === 0 ? K.none : c + " so far") +
+                            (after ? " · then " + after : "");
+  } else {
+    $(nameId).textContent = "—";
+    $(subId).textContent  = S.roster.length ? "Put players on the field first"
+                                            : "Add players on the Team tab";
+  }
+  $(tookId).disabled = !id; $(skipId).disabled = !id;
+}
+
+/* ============================ team view ============================ */
+function renderTeam(){
+  var rl = $("rosterList"); rl.innerHTML = "";
+  $("rosterCnt").textContent = S.roster.length
+    ? (S.roster.length - S.out.length) + " here of " + S.roster.length : "";
+
+  if(!S.roster.length){
+    rl.innerHTML = '<div class="empty">No players yet. Add them above.</div>';
+  }
+  S.roster.forEach(function(p){
+    var out = isOut(p.id);
+    var d = document.createElement("div");
+    d.className = "prow" + (out ? " out" : "");
+    d.innerHTML =
+      '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
+      '<span class="info"><span class="name">' + esc(p.name) + '</span></span>' +
+      '<button class="chip ' + (out ? "away" : "here") + '" data-att="' + p.id + '">' +
+        (out ? "Out" : "Here") + '</button>' +
+      '<button class="x" data-del="' + p.id + '">✕</button>';
+    rl.appendChild(d);
+  });
+
+  /* ---- minutes ---- */
+  var ml = $("minutesList"); ml.innerHTML = "";
+  var live = S.roster.filter(function(p){ return !isOut(p.id); });
+  if(!live.length){ ml.innerHTML = '<div class="empty">No players marked Here.</div>'; return; }
+  var mins = live.slice().sort(function(a,b){ return (S.play[b.id]||0) - (S.play[a.id]||0); });
+  var max = Math.max(1, S.play[mins[0].id] || 0);
+  var lo  = S.play[mins[mins.length-1].id] || 0;
+  mins.forEach(function(p){
+    var v = S.play[p.id] || 0;
+    var d = document.createElement("div");
+    d.className = "mrow";
+    d.innerHTML = '<span class="mn">' + esc(p.name) + '</span>' +
+                  '<span class="mbar"><i style="width:' + Math.round(v/max*100) + '%"></i></span>' +
+                  '<span class="mt num">' + mmss(v) + '</span>';
+    ml.appendChild(d);
+  });
+  var sp = document.createElement("div");
+  sp.className = "hint";
+  sp.innerHTML = "Gap between most and least played: <b>" + mmss(max - lo) + "</b>";
+  ml.appendChild(sp);
+}
+
+/* ============================ events ============================ */
+function startPlay(){
+  audio();
+  if(S.phase === "pre"){
+    if(!S.field.length) fillField();
+    S.half = 1; S.halfSec = 0; S.shiftSec = S.shiftLen; S.shiftNo = 1;
+    S.alerted = false; S.nag = 0; S.phase = "play"; S.running = true;
+  } else if(S.phase === "halftime"){
+    S.half = 2; S.halfSec = 0; S.shiftSec = S.shiftLen;
+    S.shiftNo++; S.alerted = false; S.nag = 0; S.phase = "play"; S.running = true;
+  } else if(S.phase === "full"){
+    newGame(true); return;
+  } else {
+    S.running = !S.running;
+  }
+  lastTs = Date.now();
+  wake(S.running);
+  render(); save();
+}
+
+function fillField(){
+  var here = S.roster.filter(function(p){ return !isOut(p.id); }).map(function(p){ return p.id; });
+  S.field = here.slice(0, S.fieldSize);
+  S.bench = S.roster.map(function(p){ return p.id; }).filter(function(id){ return S.field.indexOf(id) === -1; });
+  S.field.concat(S.bench).forEach(function(id){ S.stint[id] = 0; });
+}
+
+function tapPlayer(id, where){
+  if(sel && sel.id === id){ sel = null; render(); return; }        // tap again = deselect
+  if(sel && sel.from !== where){                                   // opposite group = swap
+    snap();
+    var offId = sel.from === "field" ? sel.id : id;
+    var onId  = sel.from === "field" ? id : sel.id;
+    swap(offId, onId);
+    if(S.shiftSec <= 0) resetShift(true);                          // shift was up — start it over
+    sel = null; render(); save();
+    toast(nameOf(onId) + " in for " + nameOf(offId), "Undo", undo);
+    return;
+  }
+  sel = { id:id, from:where };                                     // same group = change selection
+  render();
+}
+
+function moveAlone(){
+  if(!sel) return;
+  snap();
+  var dest = sel.from === "field" ? "bench" : "field";
+  moveTo(sel.id, dest);
+  var who = nameOf(sel.id);
+  sel = null; render(); save();
+  toast(who + (dest === "bench" ? " came off" : " went on"), "Undo", undo);
+}
+
+function listTap(e){
+  var row = e.target.closest ? e.target.closest(".row") : null;
+  if(!row) return;
+  var id = row.getAttribute("data-id");
+  tapPlayer(id, row.classList.contains("field") ? "field" : "bench");
+}
+$("fieldList").addEventListener("click", listTap);
+$("benchList").addEventListener("click", listTap);
+
+$("btnPlay").addEventListener("click", startPlay);
+$("btnAuto").addEventListener("click", function(){ audio(); autoSub(); });
+$("btnResetShift").addEventListener("click", function(){ resetShift(); render(); save(); });
+$("btnUndo").addEventListener("click", undo);
+$("btnThrTook").addEventListener("click", function(){ tookTurn("thr"); });
+$("btnThrSkip").addEventListener("click", function(){ skipTurn("thr"); });
+$("btnKickTook").addEventListener("click", function(){ tookTurn("kick"); });
+$("btnKickSkip").addEventListener("click", function(){ skipTurn("kick"); });
+$("btnMove").addEventListener("click", moveAlone);
+$("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
+
+/* ---- tabs ---- */
+function tab(game){
+  $("viewGame").classList.toggle("hide", !game);
+  $("viewTeam").classList.toggle("hide", game);
+  $("tabGame").classList.toggle("on", game);
+  $("tabTeam").classList.toggle("on", !game);
+  window.scrollTo(0,0);
+}
+$("tabGame").addEventListener("click", function(){ tab(true); });
+$("tabTeam").addEventListener("click", function(){ tab(false); });
+
+/* ---- roster ---- */
+function addPlayer(){
+  var name = $("inName").value.trim();
+  var num  = $("inNum").value.trim();
+  if(!name){ $("inName").focus(); return; }
+  var id = "p" + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
+  S.roster.push({ id:id, name:name, num:num });
+  S.play[id]=0; S.rest[id]=0; S.stint[id]=0; S.thr[id]=0; S.seq[id]=0; S.kick[id]=0; S.kseq[id]=0;
+  S.bench.push(id);
+  $("inName").value = ""; $("inNum").value = "";
+  render(); save();
+  $("inName").focus();
+}
+$("btnAdd").addEventListener("click", addPlayer);
+$("inName").addEventListener("keydown", function(e){ if(e.key === "Enter") addPlayer(); });
+$("inNum").addEventListener("keydown", function(e){ if(e.key === "Enter") $("inName").focus(); });
+
+$("rosterList").addEventListener("click", function(e){
+  var t = e.target;
+  var att = t.getAttribute && t.getAttribute("data-att");
+  var del = t.getAttribute && t.getAttribute("data-del");
+  if(att){
+    if(isOut(att)) pull(S.out, att);
+    else { S.out.push(att); moveTo(att, "bench"); if(sel && sel.id === att) sel = null; }
+    render(); save();
+  } else if(del){
+    var p = P(del);
+    if(!p) return;
+    if(!confirm("Remove " + p.name + " from the roster?")) return;
+    S.roster = S.roster.filter(function(x){ return x.id !== del; });
+    pull(S.field, del); pull(S.bench, del); pull(S.out, del); pull(S.skip, del); pull(S.kskip, del);
+    delete S.play[del]; delete S.rest[del]; delete S.stint[del];
+    delete S.thr[del]; delete S.seq[del]; delete S.kick[del]; delete S.kseq[del];
+    if(sel && sel.id === del) sel = null;
+    render(); save();
+  }
+});
+
+/* ---- settings ---- */
+function bindNum(elId, key, min, max, mult, after){
+  var el = $(elId);
+  el.addEventListener("change", function(){
+    var v = parseFloat(el.value);
+    if(isNaN(v)) v = DEF[key] / (mult || 1);
+    v = Math.min(max, Math.max(min, v));
+    el.value = v;
+    S[key] = v * (mult || 1);
+    if(after) after();
+    render(); save();
+  });
+}
+bindNum("setShift", "shiftLen", 0.5, 45, 60, function(){
+  if(S.phase === "pre" || S.shiftSec > S.shiftLen) S.shiftSec = S.shiftLen;
+});
+bindNum("setHalf",  "halfLen",  1, 60, 1);
+bindNum("setSize",  "fieldSize",1, 11, 1);
+bindNum("setSubs",  "subsPer",  1, 11, 1);
+
+function syncSettings(){
+  $("setShift").value = S.shiftLen / 60;
+  $("setHalf").value  = S.halfLen;
+  $("setSize").value  = S.fieldSize;
+  $("setSubs").value  = S.subsPer;
+}
+
+function newGame(skipConfirm){
+  if(!skipConfirm && !confirm("Start a new game? Clocks and throw-in turns reset. Your roster stays.")) return;
+  S.play={}; S.rest={}; S.stint={}; S.thr={}; S.seq={}; S.seqN=0; S.skip=[];
+  S.kick={}; S.kseq={}; S.kseqN=0; S.kskip=[];
+  S.field=[]; S.bench = S.roster.map(function(p){ return p.id; });
+  S.gameSec=0; S.halfSec=0; S.half=1; S.shiftSec=S.shiftLen; S.shiftNo=1;
+  S.running=false; S.alerted=false; S.phase="pre";
+  undoStack = []; sel = null;
+  wake(false); render(); save(); tab(true);
+  toast("New game ready");
+}
+$("btnNewGame").addEventListener("click", function(){ newGame(false); });
+$("btnWipe").addEventListener("click", function(){
+  if(!confirm("Erase the roster and all game data? This can’t be undone.")) return;
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  S = JSON.parse(JSON.stringify(DEF));
+  undoStack = []; sel = null;
+  syncSettings(); render(); save();
+  toast("Everything erased");
+});
+
+/* ============================ go ============================ */
+load();
+syncSettings();
+render();
+setInterval(tick, 250);
+window.addEventListener("pagehide", save);
+})();
+</script>
+</body>
+</html>
