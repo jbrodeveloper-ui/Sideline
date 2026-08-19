@@ -185,6 +185,15 @@ body{
 .selrow2 .turnbtn.assist{background:transparent;border-color:var(--gold);color:var(--gold)}
 @keyframes goalRainbow{0%{background-position:0% 50%}100%{background-position:300% 50%}}
 @media (prefers-reduced-motion:reduce){.selrow2 .turnbtn.goal{animation:none}}
+.star-burst{
+  position:fixed;z-index:200;pointer-events:none;line-height:1;will-change:transform,opacity;
+  animation:starFly .8s cubic-bezier(.2,.8,.3,1) forwards;
+}
+@keyframes starFly{
+  0%{transform:translate(0,0) scale(.3) rotate(0deg);opacity:1}
+  70%{opacity:1}
+  100%{transform:translate(var(--dx),var(--dy)) scale(1) rotate(var(--rot));opacity:0}
+}
 @media (prefers-color-scheme:dark){
   .selrow2 .turnbtn{color:#08101f}
   .selrow2 .turnbtn.goal{color:#fff}
@@ -657,6 +666,32 @@ function creditTurn(k, id){
   render(); save();
   toast(nameOf(id) + " " + K.past, "Undo", undo);
 }
+
+/* Stars fly outward from wherever the button was — a stateless one-shot burst,
+   independent of the sheet closing right after. Skipped for reduced-motion. */
+function celebrateGoal(btn){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var r = btn.getBoundingClientRect();
+  var cx = r.left + r.width/2, cy = r.top + r.height/2;
+  var glyphs = ["⭐","✨","🌟"];
+  var n = 12;
+  for(var i=0;i<n;i++){
+    var star = document.createElement("span");
+    star.className = "star-burst";
+    star.textContent = glyphs[Math.floor(Math.random()*glyphs.length)];
+    star.style.fontSize = (14 + Math.random()*10) + "px";
+    star.style.left = cx + "px";
+    star.style.top = cy + "px";
+    var angle = (Math.PI*2*i/n) + (Math.random()*0.5 - 0.25);
+    var dist = 55 + Math.random()*55;
+    star.style.setProperty("--dx", (Math.cos(angle)*dist) + "px");
+    star.style.setProperty("--dy", (Math.sin(angle)*dist - 18) + "px");
+    star.style.setProperty("--rot", (Math.random()*720 - 360) + "deg");
+    star.style.animationDelay = (Math.random()*0.08) + "s";
+    star.addEventListener("animationend", function(){ this.remove(); });
+    document.body.appendChild(star);
+  }
+}
 function tookTurn(k){
   var id = nextUp(k);
   if(!id){ toast("No one is on the field"); return; }
@@ -923,7 +958,11 @@ $("btnRest").addEventListener("click", moveAlone);
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
 $("btnCreditThrow").addEventListener("click", function(){ if(sel) creditTurn("thr", sel.id); });
 $("btnCreditKick").addEventListener("click", function(){ if(sel) creditTurn("kick", sel.id); });
-$("btnCreditGoal").addEventListener("click", function(){ if(sel) creditTurn("goal", sel.id); });
+$("btnCreditGoal").addEventListener("click", function(){
+  if(!sel) return;
+  celebrateGoal($("btnCreditGoal"));
+  creditTurn("goal", sel.id);
+});
 $("btnCreditAssist").addEventListener("click", function(){ if(sel) creditTurn("assist", sel.id); });
 
 /* ---- tabs ---- */
