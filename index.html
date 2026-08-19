@@ -57,12 +57,16 @@ body{
 .hero.warn{border-color:var(--amber);background:var(--amberbg)}
 .hero.over{border-color:var(--red);background:var(--redbg);animation:pulse 1.1s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,30,43,0)}50%{box-shadow:0 0 0 7px rgba(200,30,43,.16)}}
-.hero-lab{font-size:12px;font-weight:800;letter-spacing:.13em;color:var(--dim);text-transform:uppercase}
-.hero.warn .hero-lab{color:var(--amber)}
-.hero.over .hero-lab{color:var(--red)}
-.hero-time{font-size:70px;line-height:1;font-weight:800;letter-spacing:-.03em;margin:6px 0 2px}
-.hero.over .hero-time{color:var(--red)}
-.hero-meta{font-size:13px;color:var(--dim);display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:6px}
+.hero-cols{display:flex;align-items:center;justify-content:center;gap:12px}
+.hero-col{flex:1;min-width:0}
+.hero-div{width:1px;align-self:stretch;background:var(--line);margin:2px 0}
+.hero-lab{font-size:12px;font-weight:800;letter-spacing:.13em;color:var(--dim);text-transform:uppercase;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero.warn #heroLab{color:var(--amber)}
+.hero.over #heroLab{color:var(--red)}
+.hero-time{font-size:48px;line-height:1;font-weight:800;letter-spacing:-.02em;margin:6px 0 2px}
+.hero.over #heroTime{color:var(--red)}
+.hero-meta{font-size:13px;color:var(--dim);display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:10px}
 .hero-meta b{color:var(--txt);font-weight:700}
 
 /* ---------- buttons ---------- */
@@ -144,14 +148,27 @@ body{
 .row.field .clock b{color:var(--green)}
 .row.bench .clock b{color:var(--amber)}
 
-/* ---------- selection bar ---------- */
+/* ---------- selection bar (bottom sheet) ---------- */
 .selbar{
-  position:sticky;bottom:0;z-index:15;margin:10px -12px 0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
-  background:var(--card);border-top:1px solid var(--blue);display:flex;gap:8px;align-items:center;
-  box-shadow:0 -6px 20px rgba(13,23,48,.12);
+  position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));
+  margin:0 auto;max-width:576px;z-index:40;
+  padding:12px;border-radius:16px;border:1px solid var(--line);
+  background:var(--card);display:flex;flex-direction:column;gap:8px;
+  box-shadow:0 14px 36px rgba(13,23,48,.28);
+  transform:translateY(calc(100% + 40px));
+  transition:transform .3s cubic-bezier(.32,.72,0,1);
+  pointer-events:none;
 }
+.selbar.show{transform:translateY(0);pointer-events:auto}
+@media (prefers-reduced-motion:reduce){.selbar{transition:none}}
+.selrow{display:flex;gap:8px;align-items:center}
 .selbar .txt{flex:1;font-size:13px;line-height:1.25;color:var(--dim)}
 .selbar .txt b{display:block;color:var(--txt);font-size:15px}
+.selrow2{display:flex;gap:8px}
+.selrow2 .turnbtn{flex:1;border-radius:11px;border:1px solid;font-weight:800;font-size:14px;padding:11px 8px;color:#fff}
+.selrow2 .turnbtn.thr{background:var(--blue);border-color:var(--blue)}
+.selrow2 .turnbtn.kick{background:var(--green);border-color:var(--green)}
+@media (prefers-color-scheme:dark){.selrow2 .turnbtn{color:#08101f}}
 
 /* ---------- team view ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;
@@ -180,6 +197,18 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fld label{display:block;font-size:12px;font-weight:700;color:var(--dim);margin-bottom:5px;
            text-transform:uppercase;letter-spacing:.06em}
+.stepper{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:11px;
+         overflow:hidden;background:var(--card2)}
+.stepper input{border:0;border-radius:0;text-align:center;background:transparent;flex:1;
+               min-width:0;padding:12px 2px;-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0}
+.stepper input:focus{outline:none}
+.stepbtn{flex:0 0 42px;border:0;background:transparent;color:var(--txt);font-size:19px;font-weight:700;
+         line-height:1;display:flex;align-items:center;justify-content:center}
+.stepbtn:active{background:var(--line)}
+.stepbtn.minus{border-right:1px solid var(--line)}
+.stepbtn.plus{border-left:1px solid var(--line)}
 .mrow{display:flex;align-items:center;gap:10px;padding:7px 0}
 .mbar{flex:1;height:9px;border-radius:5px;background:var(--card2);overflow:hidden;border:1px solid var(--line)}
 .mbar i{display:block;height:100%;background:var(--green);border-radius:5px}
@@ -214,12 +243,19 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
   <section id="viewGame">
 
     <div class="hero" id="hero">
-      <div class="hero-lab" id="heroLab">Next sub in</div>
-      <div class="hero-time num" id="heroTime">5:00</div>
+      <div class="hero-cols">
+        <div class="hero-col">
+          <div class="hero-lab" id="heroLab">Next sub in</div>
+          <div class="hero-time num" id="heroTime">5:00</div>
+        </div>
+        <div class="hero-div"></div>
+        <div class="hero-col">
+          <div class="hero-lab">Game clock</div>
+          <div class="hero-time num" id="metaClock">0:00</div>
+        </div>
+      </div>
       <div class="hero-meta">
         <span id="metaHalf">1st half</span>
-        <span>·</span>
-        <span>Clock <b class="num" id="metaClock">0:00</b></span>
         <span>·</span>
         <span>Shift <b class="num" id="metaShift">1</b></span>
       </div>
@@ -267,10 +303,16 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     <div class="sec"><h2>Resting</h2><span class="cnt" id="benchCnt">0</span></div>
     <div class="list" id="benchList"></div>
 
-    <div class="selbar hide" id="selBar">
-      <div class="txt"><b id="selName">—</b><span id="selHint">Tap someone to swap</span></div>
-      <button class="btn sm" id="btnMove">Move</button>
-      <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
+    <div class="selbar" id="selBar">
+      <div class="selrow">
+        <div class="txt"><b id="selName">—</b><span id="selHint">Tap someone to swap</span></div>
+        <button class="btn sm" id="btnMove">Move</button>
+        <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
+      </div>
+      <div class="selrow2 hide" id="selTurnRow">
+        <button class="turnbtn thr" id="btnCreditThrow">🙌 Log throw-in</button>
+        <button class="turnbtn kick" id="btnCreditKick">⚽️ Log kickoff</button>
+      </div>
     </div>
   </section>
 
@@ -300,13 +342,29 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <h3>Game settings</h3>
       <div class="grid2">
         <div class="fld"><label>Shift length (min)</label>
-          <input id="setShift" type="number" inputmode="decimal" min="0.5" max="45" step="0.5"></div>
+          <div class="stepper">
+            <button type="button" class="stepbtn minus" data-target="setShift">−</button>
+            <input id="setShift" type="number" inputmode="decimal" min="0.5" max="45" step="0.5">
+            <button type="button" class="stepbtn plus" data-target="setShift">+</button>
+          </div></div>
         <div class="fld"><label>Half length (min)</label>
-          <input id="setHalf" type="number" inputmode="numeric" min="1" max="60" step="1"></div>
+          <div class="stepper">
+            <button type="button" class="stepbtn minus" data-target="setHalf">−</button>
+            <input id="setHalf" type="number" inputmode="numeric" min="1" max="60" step="1">
+            <button type="button" class="stepbtn plus" data-target="setHalf">+</button>
+          </div></div>
         <div class="fld"><label>Players on field</label>
-          <input id="setSize" type="number" inputmode="numeric" min="1" max="11" step="1"></div>
+          <div class="stepper">
+            <button type="button" class="stepbtn minus" data-target="setSize">−</button>
+            <input id="setSize" type="number" inputmode="numeric" min="1" max="11" step="1">
+            <button type="button" class="stepbtn plus" data-target="setSize">+</button>
+          </div></div>
         <div class="fld"><label>Subs per shift</label>
-          <input id="setSubs" type="number" inputmode="numeric" min="1" max="11" step="1"></div>
+          <div class="stepper">
+            <button type="button" class="stepbtn minus" data-target="setSubs">−</button>
+            <input id="setSubs" type="number" inputmode="numeric" min="1" max="11" step="1">
+            <button type="button" class="stepbtn plus" data-target="setSubs">+</button>
+          </div></div>
       </div>
       <div class="hint">“Subs per shift” is how many players <b>Sub now</b> swaps at once.</div>
       <div class="hr"></div>
@@ -552,15 +610,22 @@ function queueFor(k){
 }
 function nextUp(k){ var q = queueFor(k); return q.length ? q[0] : null; }
 
-function tookTurn(k){
-  var K = KINDS[k], id = nextUp(k);
-  if(!id){ toast("No one is on the field"); return; }
+/* Credits a turn to a SPECIFIC player, bypassing the queue — used by the
+   auto "next up" cards (id = nextUp(k)) and by manually tapping a field player. */
+function creditTurn(k, id){
+  var K = KINDS[k];
   snap();
   S[K.n][id]   = (S[K.n][id] || 0) + 1;
   S[K.seq][id] = ++S[K.seqN];
   S[K.skip]    = [];
+  sel = null;
   render(); save();
   toast(nameOf(id) + " " + K.past, "Undo", undo);
+}
+function tookTurn(k){
+  var id = nextUp(k);
+  if(!id){ toast("No one is on the field"); return; }
+  creditTurn(k, id);
 }
 function skipTurn(k){
   var K = KINDS[k], id = nextUp(k);
@@ -673,13 +738,14 @@ function render(){
   /* ---- selection bar ---- */
   var sb = $("selBar");
   if(sel){
-    sb.classList.remove("hide");
+    sb.classList.add("show");
     $("selName").textContent = nameOf(sel.id);
     $("selHint").textContent = sel.from === "field"
       ? "Tap a resting player to swap them in"
       : "Tap a player on the field to swap them out";
     $("btnMove").textContent = sel.from === "field" ? "Just take off" : "Just send on";
-  } else sb.classList.add("hide");
+    $("selTurnRow").classList.toggle("hide", sel.from !== "field");
+  } else sb.classList.remove("show");
 
   renderTeam();
   paint();
@@ -756,7 +822,7 @@ function startPlay(){
     S.half = 2; S.halfSec = 0; S.shiftSec = S.shiftLen;
     S.shiftNo++; S.alerted = false; S.nag = 0; S.phase = "play"; S.running = true;
   } else if(S.phase === "full"){
-    newGame(true); return;
+    newGame(); return;
   } else {
     S.running = !S.running;
   }
@@ -817,6 +883,8 @@ $("btnKickTook").addEventListener("click", function(){ tookTurn("kick"); });
 $("btnKickSkip").addEventListener("click", function(){ skipTurn("kick"); });
 $("btnMove").addEventListener("click", moveAlone);
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
+$("btnCreditThrow").addEventListener("click", function(){ if(sel) creditTurn("thr", sel.id); });
+$("btnCreditKick").addEventListener("click", function(){ if(sel) creditTurn("kick", sel.id); });
 
 /* ---- tabs ---- */
 function tab(game){
@@ -857,15 +925,35 @@ $("rosterList").addEventListener("click", function(e){
   } else if(del){
     var p = P(del);
     if(!p) return;
-    if(!confirm("Remove " + p.name + " from the roster?")) return;
+    var wasField = S.field.indexOf(del);
+    var wasBench = S.bench.indexOf(del);
+    var snapDel = {
+      player: p, wasField: wasField, wasBench: wasBench, wasOut: isOut(del),
+      play: S.play[del], rest: S.rest[del], stint: S.stint[del],
+      thr: S.thr[del], seq: S.seq[del], kick: S.kick[del], kseq: S.kseq[del]
+    };
     S.roster = S.roster.filter(function(x){ return x.id !== del; });
     pull(S.field, del); pull(S.bench, del); pull(S.out, del); pull(S.skip, del); pull(S.kskip, del);
     delete S.play[del]; delete S.rest[del]; delete S.stint[del];
     delete S.thr[del]; delete S.seq[del]; delete S.kick[del]; delete S.kseq[del];
     if(sel && sel.id === del) sel = null;
     render(); save();
+    toast("Removed " + p.name, "Undo", function(){ undeletePlayer(snapDel); });
   }
 });
+
+function undeletePlayer(s){
+  var id = s.player.id;
+  S.roster.push(s.player);
+  S.play[id]=s.play; S.rest[id]=s.rest; S.stint[id]=s.stint;
+  S.thr[id]=s.thr; S.seq[id]=s.seq; S.kick[id]=s.kick; S.kseq[id]=s.kseq;
+  if(s.wasOut) S.out.push(id);
+  if(s.wasField !== -1) S.field.splice(Math.min(s.wasField, S.field.length), 0, id);
+  else if(s.wasBench !== -1) S.bench.splice(Math.min(s.wasBench, S.bench.length), 0, id);
+  else S.bench.push(id);
+  render(); save();
+  toast(s.player.name + " restored");
+}
 
 /* ---- settings ---- */
 function bindNum(elId, key, min, max, mult, after){
@@ -887,6 +975,16 @@ bindNum("setHalf",  "halfLen",  1, 60, 1);
 bindNum("setSize",  "fieldSize",1, 11, 1);
 bindNum("setSubs",  "subsPer",  1, 11, 1);
 
+document.querySelectorAll(".stepbtn").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var input = $(btn.getAttribute("data-target"));
+    var step = parseFloat(input.step) || 1;
+    var v = (parseFloat(input.value) || 0) + (btn.classList.contains("plus") ? step : -step);
+    input.value = Math.round(v * 100) / 100;   // avoid float drift (e.g. 4.3 - 0.5 -> 3.7999999)
+    input.dispatchEvent(new Event("change"));  // bindNum's handler clamps + saves
+  });
+});
+
 function syncSettings(){
   $("setShift").value = S.shiftLen / 60;
   $("setHalf").value  = S.halfLen;
@@ -894,8 +992,15 @@ function syncSettings(){
   $("setSubs").value  = S.subsPer;
 }
 
-function newGame(skipConfirm){
-  if(!skipConfirm && !confirm("Start a new game? Clocks and throw-in turns reset. Your roster stays.")) return;
+/* Full-state undo for New Game / Erase — restores every S key from a deep-cloned snapshot. */
+function restoreFullState(snap){
+  for(var k in snap){ S[k] = snap[k]; }
+  sel = null;
+  syncSettings(); render(); save();
+  toast("Restored");
+}
+function newGame(){
+  var snapAll = JSON.parse(JSON.stringify(S));
   S.play={}; S.rest={}; S.stint={}; S.thr={}; S.seq={}; S.seqN=0; S.skip=[];
   S.kick={}; S.kseq={}; S.kseqN=0; S.kskip=[];
   S.field=[]; S.bench = S.roster.map(function(p){ return p.id; });
@@ -903,16 +1008,17 @@ function newGame(skipConfirm){
   S.running=false; S.alerted=false; S.phase="pre";
   undoStack = []; sel = null;
   wake(false); render(); save(); tab(true);
-  toast("New game ready");
+  toast("New game ready", "Undo", function(){ restoreFullState(snapAll); });
 }
-$("btnNewGame").addEventListener("click", function(){ newGame(false); });
+$("btnNewGame").addEventListener("click", newGame);
 $("btnWipe").addEventListener("click", function(){
-  if(!confirm("Erase the roster and all game data? This can’t be undone.")) return;
+  var snapAll = JSON.parse(JSON.stringify(S));
   try{ localStorage.removeItem(KEY); }catch(e){}
-  S = JSON.parse(JSON.stringify(DEF));
+  var fresh = JSON.parse(JSON.stringify(DEF));
+  for(var k in fresh){ S[k] = fresh[k]; }
   undoStack = []; sel = null;
   syncSettings(); render(); save();
-  toast("Everything erased");
+  toast("Everything erased", "Undo", function(){ restoreFullState(snapAll); });
 });
 
 /* ============================ go ============================ */
