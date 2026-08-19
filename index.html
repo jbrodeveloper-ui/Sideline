@@ -79,10 +79,11 @@ body{
 .btn.pri{background:var(--green);border-color:var(--green);color:#fff}
 .btn.stop{background:var(--card);color:var(--txt)}
 .btn.hot{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
 .btn.ghost{box-shadow:none;background:transparent;color:var(--dim);font-weight:600}
 .btn.sm{padding:10px 12px;font-size:14px;flex:0 0 auto}
 .btn:disabled{opacity:.4}
-@media (prefers-color-scheme:dark){.btn.pri,.btn.hot{color:#08101f}}
+@media (prefers-color-scheme:dark){.btn.pri,.btn.hot,.btn.danger{color:#08101f}}
 
 /* ---------- throw-in / kickoff turns ---------- */
 .turns{margin-top:12px;display:flex;flex-direction:column;gap:8px}
@@ -350,7 +351,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
         <div class="fld"><label>Shift length (min)</label>
           <div class="stepper">
             <button type="button" class="stepbtn minus" data-target="setShift">−</button>
-            <input id="setShift" type="number" inputmode="decimal" min="0.5" max="45" step="0.5">
+            <input id="setShift" type="number" inputmode="numeric" min="1" max="45" step="1">
             <button type="button" class="stepbtn plus" data-target="setShift">+</button>
           </div></div>
         <div class="fld"><label>Half length (min)</label>
@@ -375,8 +376,8 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <div class="hint">“Subs per shift” controls how many players swap at once when auto-subbing is enabled.</div>
       <div class="hr"></div>
       <div class="btns">
-        <button class="btn" id="btnNewGame">New game</button>
-        <button class="btn ghost" id="btnWipe">Erase everything</button>
+        <button class="btn pri" id="btnNewGame">New game</button>
+        <button class="btn danger" id="btnWipe">Erase everything</button>
       </div>
       <div class="hint">New game clears clocks, throw-in turns and the field, and keeps your roster.</div>
     </div>
@@ -975,7 +976,7 @@ function bindNum(elId, key, min, max, mult, after){
     render(); save();
   });
 }
-bindNum("setShift", "shiftLen", 0.5, 45, 60, function(){
+bindNum("setShift", "shiftLen", 1, 45, 60, function(){
   if(S.phase === "pre" || S.shiftSec > S.shiftLen) S.shiftSec = S.shiftLen;
 });
 bindNum("setHalf",  "halfLen",  1, 60, 1);
