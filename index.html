@@ -138,8 +138,8 @@ body{
 .meta{font-size:12px;color:var(--dim);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .tag{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;
      border-radius:5px;font-style:normal;white-space:nowrap}
-.tag.off{background:var(--redbg);color:var(--red)}
-.tag.on{background:var(--greenbg);color:var(--green)}
+.tag.off{background:var(--redbg);color:var(--red);margin-left:auto}
+.tag.on{background:var(--greenbg);color:var(--green);margin-left:auto}
 .tag.ti{background:var(--bluebg);color:var(--blue)}
 .clock{flex:0 0 auto;text-align:right}
 .clock b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
@@ -263,7 +263,6 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 
     <div class="btns">
       <button class="btn pri" id="btnPlay">▶︎ Start 1st half</button>
-      <button class="btn hot" id="btnAuto">⇄ Sub now</button>
     </div>
     <div class="btns">
       <button class="btn ghost sm" id="btnResetShift" style="flex:1">↻ Restart shift timer</button>
@@ -366,7 +365,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
             <button type="button" class="stepbtn plus" data-target="setSubs">+</button>
           </div></div>
       </div>
-      <div class="hint">“Subs per shift” is how many players <b>Sub now</b> swaps at once.</div>
+      <div class="hint">“Subs per shift” controls how many players swap at once when auto-subbing is enabled.</div>
       <div class="hr"></div>
       <div class="btns">
         <button class="btn" id="btnNewGame">New game</button>
@@ -532,7 +531,7 @@ function tick(){
       if(!S.alerted){
         S.alerted = true; S.nag = 0;
         beep(3);
-        toast("⏰ Time to sub — tap “Sub now”");
+        toast("⏰ Time to sub — tap a player on the field");
       } else if((-S.shiftSec) - S.nag >= 30){    // still nobody subbed — remind again
         S.nag = Math.floor((-S.shiftSec) / 30) * 30;
         beep(2);
@@ -672,18 +671,19 @@ function playerRow(id, where, rank){
   b.className = "row " + where + (sel && sel.id === id ? " sel" : "");
   b.setAttribute("data-id", id);
 
-  var tags = "";
-  if(rank === 0 && where === "field") tags += '<i class="tag off">next off</i>';
-  if(rank === 0 && where === "bench") tags += '<i class="tag on">next on</i>';
+  var rankTag = "";
+  if(rank === 0 && where === "field") rankTag = '<i class="tag off">next off</i>';
+  if(rank === 0 && where === "bench") rankTag = '<i class="tag on">next on</i>';
   var t = S.thr[id] || 0;
-  tags += '<i class="tag ti">🙌 ' + t + '  ⚽️ ' + (S.kick[id] || 0) + '</i>';
+  var turnsTag = '<i class="tag ti">🙌 ' + t + '  ⚽️ ' + (S.kick[id] || 0) + '</i>';
 
   b.innerHTML =
     '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
     '<span class="info">' +
       '<span class="name">' + esc(p.name) + '</span>' +
-      '<span class="meta">' + tags +
+      '<span class="meta">' + turnsTag +
         '<span>Played <b class="num" data-t="p:' + id + '">0:00</b></span>' +
+        rankTag +
       '</span>' +
     '</span>' +
     '<span class="clock">' +
@@ -743,7 +743,7 @@ function render(){
     $("selHint").textContent = sel.from === "field"
       ? "Tap a resting player to swap them in"
       : "Tap a player on the field to swap them out";
-    $("btnMove").textContent = sel.from === "field" ? "Just take off" : "Just send on";
+    $("btnMove").textContent = sel.from === "field" ? "Rest" : "Just send on";
     $("selTurnRow").classList.toggle("hide", sel.from !== "field");
   } else sb.classList.remove("show");
 
@@ -839,6 +839,7 @@ function fillField(){
 }
 
 function tapPlayer(id, where){
+  hideToast();                                                     // a leftover Undo toast shouldn't block the next action
   if(sel && sel.id === id){ sel = null; render(); return; }        // tap again = deselect
   if(sel && sel.from !== where){                                   // opposite group = swap
     snap();
@@ -874,7 +875,6 @@ $("fieldList").addEventListener("click", listTap);
 $("benchList").addEventListener("click", listTap);
 
 $("btnPlay").addEventListener("click", startPlay);
-$("btnAuto").addEventListener("click", function(){ audio(); autoSub(); });
 $("btnResetShift").addEventListener("click", function(){ resetShift(); render(); save(); });
 $("btnUndo").addEventListener("click", undo);
 $("btnThrTook").addEventListener("click", function(){ tookTurn("thr"); });
