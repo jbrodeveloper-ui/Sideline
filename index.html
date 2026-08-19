@@ -119,7 +119,7 @@ body{
 /* ---------- player rows ---------- */
 .list{display:flex;flex-direction:column;gap:7px}
 .row{
-  width:100%;display:flex;align-items:center;gap:11px;text-align:left;
+  position:relative;width:100%;display:flex;align-items:center;gap:11px;text-align:left;
   background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
   border-radius:13px;padding:12px 13px;min-height:62px;box-shadow:var(--shadow);color:var(--txt);
   font-family:inherit;font-size:16px;
@@ -140,11 +140,12 @@ body{
        gap:3px;font-size:12px;color:var(--dim);text-align:center}
 .tag{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;
      border-radius:5px;font-style:normal;white-space:nowrap}
-.tag.off{background:var(--redbg);color:var(--red)}
-.tag.on{background:var(--greenbg);color:var(--green)}
+.tag.off{background:var(--redbg);color:var(--red);position:absolute;top:-9px;right:60px;
+         box-shadow:0 1px 3px rgba(13,23,48,.18)}
+.tag.on{background:var(--greenbg);color:var(--green);position:absolute;top:-9px;right:60px;
+        box-shadow:0 1px 3px rgba(13,23,48,.18)}
 .tag.ti{background:var(--bluebg);color:var(--blue)}
 .clock{flex:0 0 auto;text-align:right}
-.clock .tag{display:inline-block;margin-bottom:3px}
 .clock b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
 .clock em{display:block;font-size:10px;font-style:normal;color:var(--faint);text-transform:uppercase;
           letter-spacing:.07em;margin-top:1px}
@@ -167,10 +168,12 @@ body{
 .selrow{display:flex;gap:8px;align-items:center}
 .selbar .txt{flex:1;font-size:13px;line-height:1.25;color:var(--dim)}
 .selbar .txt b{display:block;color:var(--txt);font-size:15px}
-.selrow2{display:flex;gap:8px}
-.selrow2 .turnbtn{flex:1;border-radius:11px;border:1px solid;font-weight:800;font-size:14px;padding:11px 8px;color:#fff}
+.selrow2{display:flex;gap:8px;flex-wrap:wrap}
+.selrow2 .turnbtn{flex:1;min-width:88px;border-radius:11px;border:1px solid;font-weight:800;font-size:13.5px;
+                  padding:11px 6px;color:#fff}
 .selrow2 .turnbtn.thr{background:var(--blue);border-color:var(--blue)}
 .selrow2 .turnbtn.kick{background:var(--green);border-color:var(--green)}
+.selrow2 .turnbtn.rest{background:var(--amber);border-color:var(--amber)}
 @media (prefers-color-scheme:dark){.selrow2 .turnbtn{color:#08101f}}
 
 /* ---------- team view ---------- */
@@ -281,7 +284,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
           <div class="sub" id="thrSub">Add players to get started</div>
         </div>
         <div class="acts">
-          <button id="btnThrTook">Took it</button>
+          <button id="btnThrTook">Log it</button>
           <button id="btnThrSkip" class="alt">Skip</button>
         </div>
       </div>
@@ -293,7 +296,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
           <div class="sub" id="kickSub">Add players to get started</div>
         </div>
         <div class="acts">
-          <button id="btnKickTook">Took it</button>
+          <button id="btnKickTook">Log it</button>
           <button id="btnKickSkip" class="alt">Skip</button>
         </div>
       </div>
@@ -308,12 +311,13 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     <div class="selbar" id="selBar">
       <div class="selrow">
         <div class="txt"><b id="selName">—</b><span id="selHint">Tap someone to swap</span></div>
-        <button class="btn sm" id="btnMove">Move</button>
+        <button class="btn sm" id="btnSendOn">Send on</button>
         <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
       </div>
       <div class="selrow2 hide" id="selTurnRow">
         <button class="turnbtn thr" id="btnCreditThrow">🙌 Log throw-in</button>
         <button class="turnbtn kick" id="btnCreditKick">⚽️ Log kickoff</button>
+        <button class="turnbtn rest" id="btnRest">😴 Rest</button>
       </div>
     </div>
   </section>
@@ -745,7 +749,7 @@ function render(){
     $("selHint").textContent = sel.from === "field"
       ? "Tap a resting player to swap them in"
       : "Tap a player on the field to swap them out";
-    $("btnMove").textContent = sel.from === "field" ? "Rest" : "Just send on";
+    $("btnSendOn").classList.toggle("hide", sel.from === "field");
     $("selTurnRow").classList.toggle("hide", sel.from !== "field");
   } else sb.classList.remove("show");
 
@@ -883,7 +887,8 @@ $("btnThrTook").addEventListener("click", function(){ tookTurn("thr"); });
 $("btnThrSkip").addEventListener("click", function(){ skipTurn("thr"); });
 $("btnKickTook").addEventListener("click", function(){ tookTurn("kick"); });
 $("btnKickSkip").addEventListener("click", function(){ skipTurn("kick"); });
-$("btnMove").addEventListener("click", moveAlone);
+$("btnSendOn").addEventListener("click", moveAlone);
+$("btnRest").addEventListener("click", moveAlone);
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
 $("btnCreditThrow").addEventListener("click", function(){ if(sel) creditTurn("thr", sel.id); });
 $("btnCreditKick").addEventListener("click", function(){ if(sel) creditTurn("kick", sel.id); });
