@@ -18,6 +18,7 @@
   --amber:#a45c07; --amberbg:#fdf1dd;
   --red:#c81e2b; --redbg:#fde8e9;
   --blue:#1a4fd6; --bluebg:#e6edff;
+  --gold:#a67c00; --goldbg:#fdf3d9;
   --shadow:0 1px 2px rgba(13,23,48,.07),0 4px 14px rgba(13,23,48,.06);
 }
 @media (prefers-color-scheme:dark){
@@ -28,6 +29,7 @@
     --amber:#ffb02e; --amberbg:#33240a;
     --red:#ff6b6b; --redbg:#3a1418;
     --blue:#7aa2ff; --bluebg:#132347;
+    --gold:#ffd54f; --goldbg:#332a05;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
   }
 }
@@ -175,7 +177,12 @@ body{
 .selrow2 .turnbtn.thr{background:var(--blue);border-color:var(--blue)}
 .selrow2 .turnbtn.kick{background:var(--green);border-color:var(--green)}
 .selrow2 .turnbtn.rest{background:var(--amber);border-color:var(--amber)}
-@media (prefers-color-scheme:dark){.selrow2 .turnbtn{color:#08101f}}
+.selrow2 .turnbtn.goal{background:var(--gold);border-color:var(--gold)}
+.selrow2 .turnbtn.assist{background:transparent;border-color:var(--gold);color:var(--gold)}
+@media (prefers-color-scheme:dark){
+  .selrow2 .turnbtn{color:#08101f}
+  .selrow2 .turnbtn.assist{color:var(--gold)}
+}
 
 /* ---------- team view ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;
@@ -320,6 +327,10 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
         <button class="turnbtn kick" id="btnCreditKick">⚽️ Log kickoff</button>
         <button class="turnbtn rest" id="btnRest">😴 Rest</button>
       </div>
+      <div class="selrow2 hide" id="selScoreRow">
+        <button class="turnbtn goal" id="btnCreditGoal">🥅 Goal</button>
+        <button class="turnbtn assist" id="btnCreditAssist">🎯 Assist</button>
+      </div>
     </div>
   </section>
 
@@ -409,6 +420,8 @@ var DEF = {
   kseq: {},          // id -> order marker of last kickoff (0 = never)
   kseqN:0,
   kskip:[],          // ids skipped for the current kickoff
+  goal:   {}, gseq: {}, gseqN: 0, gskip: [],   // id -> goals scored (manual credit only, no queue)
+  assist: {}, aseq: {}, aseqN: 0, askip: [],   // id -> assists (manual credit only, no queue)
   gameSec: 0, halfSec: 0, half: 1, halves: 2,
   shiftLen: 300, shiftSec: 300, shiftNo: 1,
   halfLen: 15, fieldSize: 5, subsPer: 3,
@@ -450,7 +463,9 @@ function snap(){
   undoStack.push(JSON.stringify({
     field:S.field, bench:S.bench, stint:S.stint,
     thr:S.thr,   seq:S.seq,   seqN:S.seqN,   skip:S.skip,
-    kick:S.kick, kseq:S.kseq, kseqN:S.kseqN, kskip:S.kskip
+    kick:S.kick, kseq:S.kseq, kseqN:S.kseqN, kskip:S.kskip,
+    goal:S.goal, gseq:S.gseq, gseqN:S.gseqN, gskip:S.gskip,
+    assist:S.assist, aseq:S.aseq, aseqN:S.aseqN, askip:S.askip
   }));
   if(undoStack.length > 25) undoStack.shift();
 }
@@ -460,6 +475,8 @@ function undo(){
   S.field=o.field; S.bench=o.bench; S.stint=o.stint;
   S.thr=o.thr;   S.seq=o.seq;   S.seqN=o.seqN;   S.skip=o.skip;
   S.kick=o.kick; S.kseq=o.kseq; S.kseqN=o.kseqN; S.kskip=o.kskip;
+  S.goal=o.goal; S.gseq=o.gseq; S.gseqN=o.gseqN; S.gskip=o.gskip;
+  S.assist=o.assist; S.aseq=o.aseq; S.aseqN=o.aseqN; S.askip=o.askip;
   sel = null; render(); save(); toast("Undone");
 }
 
@@ -595,10 +612,14 @@ function autoSub(){
 }
 
 /* ============================ throw-ins ============================ */
-/* Two rotations, same rules. K describes each one so they can't drift apart. */
+/* Four tallies, same shape. K describes each one so they can't drift apart.
+   thr/kick are fair rotations with a "next up" queue; goal/assist are manual-only
+   (nobody can predict who scores next) \u2014 they use creditTurn() directly, never queueFor(). */
 var KINDS = {
-  thr:  { n:"thr",  seq:"seq",  seqN:"seqN",  skip:"skip",  verb:"throw-in", past:"took the throw-in", none:"Hasn\u2019t thrown in yet" },
-  kick: { n:"kick", seq:"kseq", seqN:"kseqN", skip:"kskip", verb:"kickoff",  past:"took the kickoff",  none:"Hasn\u2019t kicked off yet" }
+  thr:    { n:"thr",    seq:"seq",  seqN:"seqN",  skip:"skip",  verb:"throw-in", past:"took the throw-in", none:"Hasn\u2019t thrown in yet" },
+  kick:   { n:"kick",   seq:"kseq", seqN:"kseqN", skip:"kskip", verb:"kickoff",  past:"took the kickoff",  none:"Hasn\u2019t kicked off yet" },
+  goal:   { n:"goal",   seq:"gseq", seqN:"gseqN", skip:"gskip", verb:"goal",     past:"scored a goal",     none:"" },
+  assist: { n:"assist", seq:"aseq", seqN:"aseqN", skip:"askip", verb:"assist",   past:"got an assist",     none:"" }
 };
 
 /* The whole queue, best pick first. Only players on the field are eligible —
@@ -682,8 +703,9 @@ function playerRow(id, where, rank){
   var rankTag = "";
   if(rank === 0 && where === "field") rankTag = '<i class="tag off">next off</i>';
   if(rank === 0 && where === "bench") rankTag = '<i class="tag on">next on</i>';
-  var t = S.thr[id] || 0;
-  var turnsTag = '<i class="tag ti">🙌 ' + t + '  ⚽️ ' + (S.kick[id] || 0) + '</i>';
+  var t = S.thr[id] || 0, g = S.goal[id] || 0, a = S.assist[id] || 0;
+  var turnsTag = '<i class="tag ti">🙌 ' + t + '  ⚽️ ' + (S.kick[id] || 0) +
+    (g > 0 ? '  🥅 ' + g : '') + (a > 0 ? '  🎯 ' + a : '') + '</i>';
 
   b.innerHTML =
     '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
@@ -752,6 +774,7 @@ function render(){
       : "Tap a player on the field to swap them out";
     $("btnSendOn").classList.toggle("hide", sel.from === "field");
     $("selTurnRow").classList.toggle("hide", sel.from !== "field");
+    $("selScoreRow").classList.toggle("hide", sel.from !== "field");
   } else sb.classList.remove("show");
 
   renderTeam();
@@ -893,6 +916,8 @@ $("btnRest").addEventListener("click", moveAlone);
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
 $("btnCreditThrow").addEventListener("click", function(){ if(sel) creditTurn("thr", sel.id); });
 $("btnCreditKick").addEventListener("click", function(){ if(sel) creditTurn("kick", sel.id); });
+$("btnCreditGoal").addEventListener("click", function(){ if(sel) creditTurn("goal", sel.id); });
+$("btnCreditAssist").addEventListener("click", function(){ if(sel) creditTurn("assist", sel.id); });
 
 /* ---- tabs ---- */
 function tab(game){
@@ -913,6 +938,7 @@ function addPlayer(){
   var id = "p" + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
   S.roster.push({ id:id, name:name, num:num });
   S.play[id]=0; S.rest[id]=0; S.stint[id]=0; S.thr[id]=0; S.seq[id]=0; S.kick[id]=0; S.kseq[id]=0;
+  S.goal[id]=0; S.gseq[id]=0; S.assist[id]=0; S.aseq[id]=0;
   S.bench.push(id);
   $("inName").value = ""; $("inNum").value = "";
   render(); save();
@@ -938,12 +964,15 @@ $("rosterList").addEventListener("click", function(e){
     var snapDel = {
       player: p, wasField: wasField, wasBench: wasBench, wasOut: isOut(del),
       play: S.play[del], rest: S.rest[del], stint: S.stint[del],
-      thr: S.thr[del], seq: S.seq[del], kick: S.kick[del], kseq: S.kseq[del]
+      thr: S.thr[del], seq: S.seq[del], kick: S.kick[del], kseq: S.kseq[del],
+      goal: S.goal[del], gseq: S.gseq[del], assist: S.assist[del], aseq: S.aseq[del]
     };
     S.roster = S.roster.filter(function(x){ return x.id !== del; });
     pull(S.field, del); pull(S.bench, del); pull(S.out, del); pull(S.skip, del); pull(S.kskip, del);
+    pull(S.gskip, del); pull(S.askip, del);
     delete S.play[del]; delete S.rest[del]; delete S.stint[del];
     delete S.thr[del]; delete S.seq[del]; delete S.kick[del]; delete S.kseq[del];
+    delete S.goal[del]; delete S.gseq[del]; delete S.assist[del]; delete S.aseq[del];
     if(sel && sel.id === del) sel = null;
     render(); save();
     toast("Removed " + p.name, "Undo", function(){ undeletePlayer(snapDel); });
@@ -955,6 +984,7 @@ function undeletePlayer(s){
   S.roster.push(s.player);
   S.play[id]=s.play; S.rest[id]=s.rest; S.stint[id]=s.stint;
   S.thr[id]=s.thr; S.seq[id]=s.seq; S.kick[id]=s.kick; S.kseq[id]=s.kseq;
+  S.goal[id]=s.goal; S.gseq[id]=s.gseq; S.assist[id]=s.assist; S.aseq[id]=s.aseq;
   if(s.wasOut) S.out.push(id);
   if(s.wasField !== -1) S.field.splice(Math.min(s.wasField, S.field.length), 0, id);
   else if(s.wasBench !== -1) S.bench.splice(Math.min(s.wasBench, S.bench.length), 0, id);
@@ -1011,6 +1041,8 @@ function newGame(){
   var snapAll = JSON.parse(JSON.stringify(S));
   S.play={}; S.rest={}; S.stint={}; S.thr={}; S.seq={}; S.seqN=0; S.skip=[];
   S.kick={}; S.kseq={}; S.kseqN=0; S.kskip=[];
+  S.goal={}; S.gseq={}; S.gseqN=0; S.gskip=[];
+  S.assist={}; S.aseq={}; S.aseqN=0; S.askip=[];
   S.field=[]; S.bench = S.roster.map(function(p){ return p.id; });
   S.gameSec=0; S.halfSec=0; S.half=1; S.shiftSec=S.shiftLen; S.shiftNo=1;
   S.running=false; S.alerted=false; S.phase="pre";
