@@ -177,10 +177,17 @@ body{
 .selrow2 .turnbtn.thr{background:var(--blue);border-color:var(--blue)}
 .selrow2 .turnbtn.kick{background:var(--green);border-color:var(--green)}
 .selrow2 .turnbtn.rest{background:var(--amber);border-color:var(--amber)}
-.selrow2 .turnbtn.goal{background:var(--gold);border-color:var(--gold)}
+.selrow2 .turnbtn.goal{
+  background:linear-gradient(90deg,#ff3b30,#ff9500,#ffcc00,#34c759,#007aff,#af52de,#ff3b30);
+  background-size:300% 100%;border-color:transparent;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);animation:goalRainbow 4s linear infinite;
+}
 .selrow2 .turnbtn.assist{background:transparent;border-color:var(--gold);color:var(--gold)}
+@keyframes goalRainbow{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+@media (prefers-reduced-motion:reduce){.selrow2 .turnbtn.goal{animation:none}}
 @media (prefers-color-scheme:dark){
   .selrow2 .turnbtn{color:#08101f}
+  .selrow2 .turnbtn.goal{color:#fff}
   .selrow2 .turnbtn.assist{color:var(--gold)}
 }
 
