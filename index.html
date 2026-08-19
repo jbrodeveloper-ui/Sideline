@@ -339,8 +339,8 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
         <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
       </div>
       <div class="selrow2 hide" id="selTurnRow">
-        <button class="turnbtn thr" id="btnCreditThrow">🙌 Log throw-in</button>
-        <button class="turnbtn kick" id="btnCreditKick">⚽️ Log kickoff</button>
+        <button class="turnbtn thr" id="btnCreditThrow">🙌 Throw-in</button>
+        <button class="turnbtn kick" id="btnCreditKick">⚽️ Kickoff</button>
         <button class="turnbtn rest" id="btnRest">😴 Rest</button>
       </div>
       <div class="selrow2 hide" id="selScoreRow">
@@ -667,30 +667,55 @@ function creditTurn(k, id){
   toast(nameOf(id) + " " + K.past, "Undo", undo);
 }
 
-/* Stars fly outward from wherever the button was — a stateless one-shot burst,
-   independent of the sheet closing right after. Skipped for reduced-motion. */
-function celebrateGoal(btn){
+/* Emoji fly outward from wherever the button was — a stateless one-shot burst,
+   independent of the sheet closing right after. Skipped for reduced-motion.
+   angleSpread >= full circle -> evenly stratified all the way around;
+   otherwise a jittered fan centered on angleMid, e.g. -PI/2 = straight up. */
+function burstFrom(btn, o){
   if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var r = btn.getBoundingClientRect();
   var cx = r.left + r.width/2, cy = r.top + r.height/2;
-  var glyphs = ["⭐","✨","🌟"];
-  var n = 12;
+  var n = o.count, full = Math.PI*2;
+  var spread = o.angleSpread != null ? o.angleSpread : full;
+  var mid = o.angleMid || 0, spin = o.spin != null ? o.spin : 720;
+  var stagger = o.stagger != null ? o.stagger : 0.08;
   for(var i=0;i<n;i++){
-    var star = document.createElement("span");
-    star.className = "star-burst";
-    star.textContent = glyphs[Math.floor(Math.random()*glyphs.length)];
-    star.style.fontSize = (14 + Math.random()*10) + "px";
-    star.style.left = cx + "px";
-    star.style.top = cy + "px";
-    var angle = (Math.PI*2*i/n) + (Math.random()*0.5 - 0.25);
-    var dist = 55 + Math.random()*55;
-    star.style.setProperty("--dx", (Math.cos(angle)*dist) + "px");
-    star.style.setProperty("--dy", (Math.sin(angle)*dist - 18) + "px");
-    star.style.setProperty("--rot", (Math.random()*720 - 360) + "deg");
-    star.style.animationDelay = (Math.random()*0.08) + "s";
-    star.addEventListener("animationend", function(){ this.remove(); });
-    document.body.appendChild(star);
+    var el = document.createElement("span");
+    el.className = "star-burst";
+    el.textContent = o.glyphs[Math.floor(Math.random()*o.glyphs.length)];
+    el.style.fontSize = (o.minSize || 14) + Math.random()*(o.sizeRange != null ? o.sizeRange : 10) + "px";
+    el.style.left = cx + "px";
+    el.style.top = cy + "px";
+    var angle = spread >= full
+      ? (full*i/n) + (Math.random()*0.5 - 0.25)
+      : mid - spread/2 + spread*(n > 1 ? i/(n-1) : 0.5) + (Math.random()*0.4 - 0.2);
+    var dist = (o.minDist || 40) + Math.random()*(o.distRange != null ? o.distRange : 40);
+    el.style.setProperty("--dx", (Math.cos(angle)*dist) + "px");
+    el.style.setProperty("--dy", (Math.sin(angle)*dist - (o.upShift || 0)) + "px");
+    el.style.setProperty("--rot", (Math.random()*spin - spin/2) + "deg");
+    el.style.animationDelay = (Math.random()*stagger) + "s";
+    if(o.duration) el.style.animationDuration = o.duration + "s";
+    el.addEventListener("animationend", function(){ this.remove(); });
+    document.body.appendChild(el);
   }
+}
+function celebrateGoal(btn){
+  burstFrom(btn, {glyphs:["⭐","✨","🌟"], count:12, minDist:55, distRange:55, sizeRange:10, upShift:18});
+}
+function celebrateAssist(btn){
+  burstFrom(btn, {glyphs:["🎯","✨"], count:7, minDist:35, distRange:30, minSize:13, sizeRange:6, upShift:10});
+}
+function celebrateThrow(btn){
+  burstFrom(btn, {glyphs:["🙌","💫"], count:7, angleMid:-Math.PI/2, angleSpread:Math.PI*1.1,
+    minDist:32, distRange:28, minSize:13, sizeRange:6, spin:200});
+}
+function celebrateKick(btn){
+  burstFrom(btn, {glyphs:["⚽️","💨"], count:7, angleMid:0, angleSpread:Math.PI*1.6,
+    minDist:34, distRange:32, minSize:13, sizeRange:6, spin:400, duration:0.65});
+}
+function celebrateRest(btn){
+  burstFrom(btn, {glyphs:["💤"], count:4, angleMid:-Math.PI/2, angleSpread:Math.PI*0.3,
+    minDist:26, distRange:20, minSize:15, sizeRange:6, spin:30, stagger:0.2, duration:1.3});
 }
 function tookTurn(k){
   var id = nextUp(k);
@@ -954,16 +979,31 @@ $("btnThrSkip").addEventListener("click", function(){ skipTurn("thr"); });
 $("btnKickTook").addEventListener("click", function(){ tookTurn("kick"); });
 $("btnKickSkip").addEventListener("click", function(){ skipTurn("kick"); });
 $("btnSendOn").addEventListener("click", moveAlone);
-$("btnRest").addEventListener("click", moveAlone);
+$("btnRest").addEventListener("click", function(){
+  if(sel) celebrateRest($("btnRest"));
+  moveAlone();
+});
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
-$("btnCreditThrow").addEventListener("click", function(){ if(sel) creditTurn("thr", sel.id); });
-$("btnCreditKick").addEventListener("click", function(){ if(sel) creditTurn("kick", sel.id); });
+$("btnCreditThrow").addEventListener("click", function(){
+  if(!sel) return;
+  celebrateThrow($("btnCreditThrow"));
+  creditTurn("thr", sel.id);
+});
+$("btnCreditKick").addEventListener("click", function(){
+  if(!sel) return;
+  celebrateKick($("btnCreditKick"));
+  creditTurn("kick", sel.id);
+});
 $("btnCreditGoal").addEventListener("click", function(){
   if(!sel) return;
   celebrateGoal($("btnCreditGoal"));
   creditTurn("goal", sel.id);
 });
-$("btnCreditAssist").addEventListener("click", function(){ if(sel) creditTurn("assist", sel.id); });
+$("btnCreditAssist").addEventListener("click", function(){
+  if(!sel) return;
+  celebrateAssist($("btnCreditAssist"));
+  creditTurn("assist", sel.id);
+});
 
 /* ---- tabs ---- */
 function tab(game){
