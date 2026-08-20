@@ -340,18 +340,20 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     <div class="selbar" id="selBar">
       <div class="selrow">
         <div class="txt"><b id="selName">—</b><span id="selHint">Tap someone to swap</span></div>
-        <button class="btn sm" id="btnSendOn">Send on</button>
         <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
       </div>
       <div class="selrow2 hide" id="selTurnRow">
         <button class="turnbtn thr" id="btnCreditThrow">🙌 Throw-in</button>
         <button class="turnbtn kick" id="btnCreditKick">⚽️ Kickoff</button>
-        <button class="turnbtn rest" id="btnRest">😴 Rest</button>
       </div>
       <div class="selrow2 hide" id="selScoreRow">
         <button class="turnbtn goal" id="btnCreditGoal">🥅 Goal</button>
         <button class="turnbtn assist" id="btnCreditAssist">🎯 Assist</button>
       </div>
+      <div class="selrow2 hide" id="selRestRow">
+        <button class="turnbtn rest" id="btnRest">😴 Rest</button>
+      </div>
+      <button class="btn pri hide" id="btnSendOn">▶️ Send On</button>
     </div>
   </section>
 
@@ -882,6 +884,7 @@ function render(){
     $("btnSendOn").classList.toggle("hide", sel.from === "field");
     $("selTurnRow").classList.toggle("hide", sel.from !== "field");
     $("selScoreRow").classList.toggle("hide", sel.from !== "field");
+    $("selRestRow").classList.toggle("hide", sel.from !== "field");
   } else sb.classList.remove("show");
 
   renderTeam();
