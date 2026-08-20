@@ -68,6 +68,8 @@ body{
 .hero.over #heroLab{color:var(--red)}
 .hero-time{font-size:48px;line-height:1;font-weight:800;letter-spacing:-.02em;margin:6px 0 2px}
 .hero.over #heroTime{color:var(--red)}
+#clockLab.over{color:var(--red)}
+#metaClock.over{color:var(--red)}
 .hero-meta{font-size:13px;color:var(--dim);display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:10px}
 .hero-meta b{color:var(--txt);font-weight:700}
 
@@ -82,10 +84,11 @@ body{
 .btn.stop{background:var(--card);color:var(--txt)}
 .btn.hot{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn.warn{background:var(--amber);border-color:var(--amber);color:#fff}
 .btn.ghost{box-shadow:none;background:transparent;color:var(--dim);font-weight:600}
 .btn.sm{padding:10px 12px;font-size:14px;flex:0 0 auto}
 .btn:disabled{opacity:.4}
-@media (prefers-color-scheme:dark){.btn.pri,.btn.hot,.btn.danger{color:#08101f}}
+@media (prefers-color-scheme:dark){.btn.pri,.btn.hot,.btn.danger,.btn.warn{color:#08101f}}
 
 /* ---------- throw-in / kickoff turns ---------- */
 .turns{margin-top:12px;display:flex;flex-direction:column;gap:8px}
@@ -277,7 +280,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     <div class="hero" id="hero">
       <div class="hero-cols">
         <div class="hero-col">
-          <div class="hero-lab">Game clock</div>
+          <div class="hero-lab" id="clockLab">Game clock</div>
           <div class="hero-time num" id="metaClock">0:00</div>
         </div>
         <div class="hero-div"></div>
@@ -443,7 +446,7 @@ var DEF = {
   gameSec: 0, halfSec: 0, half: 1, halves: 2,
   shiftLen: 300, shiftSec: 300, shiftNo: 1,
   halfLen: 15, fieldSize: 5, subsPer: 3,
-  running: false, alerted: false, nag: 0,
+  running: false, alerted: false, nag: 0, halfOver: false,
   phase: "pre"       // pre | play | halftime | full
 };
 var S = JSON.parse(JSON.stringify(DEF));
@@ -580,12 +583,15 @@ function tick(){
         beep(2);
       }
     }
-    if(S.halfSec >= S.halfLen*60){
-      S.running = false; wake(false);
-      if(S.half >= S.halves){ S.phase = "full"; beep(5); toast("🏁 Full time"); }
-      else { S.phase = "halftime"; beep(4); toast("☕️ Halftime"); }
-      render(); save();
-      return;
+    if(S.halfSec >= S.halfLen*60 && !S.halfOver){
+      // Reaching regulation time is an alert, not a hard stop — kids may still be
+      // playing with no real break, so the clock and player timers keep running
+      // until the coach explicitly ends the half via the Pause/End button.
+      S.halfOver = true;
+      if(S.half >= S.halves) beep(5); else beep(4);
+      toast(S.half >= S.halves ? "🏁 Full time reached — tap End game when ready"
+                                : "☕️ Half time reached — tap End half when ready");
+      render(); save();   // tick() only calls paint() normally — this flips the button label too
     }
     if(Math.floor(S.gameSec) % 10 === 0) save();
   }
@@ -750,12 +756,29 @@ function heroState(){
   return { lab:"Next sub in", time:mmss(S.shiftSec), cls:"" };
 }
 
+/* Once regulation time passes, keep counting rather than freezing at 0 —
+   kids may still be playing with no real break. Stays showing the overage
+   even after the coach ends the half, so they can see how long it ran. */
+function clockState(){
+  var limit = S.halfLen*60;
+  if(S.halfSec > limit){
+    return { lab:(S.half >= S.halves ? "Full time" : "Half time"), time:mmss(S.halfSec - limit), over:true };
+  }
+  if(S.phase === "halftime") return { lab:"Half time", time:mmss(0), over:false };
+  if(S.phase === "full")     return { lab:"Full time", time:mmss(0), over:false };
+  return { lab:"Game clock", time:mmss(S.halfSec), over:false };
+}
+
 function paint(){   /* cheap, runs 4x a second — only touches numbers */
   var h = heroState();
   $("heroTime").textContent = h.time;
   $("heroLab").textContent  = h.lab;
   $("hero").className = "hero " + h.cls;
-  $("metaClock").textContent = mmss(S.halfSec);
+  var cs = clockState();
+  $("metaClock").textContent = cs.time;
+  $("clockLab").textContent = cs.lab;
+  $("metaClock").classList.toggle("over", cs.over);
+  $("clockLab").classList.toggle("over", cs.over);
   $("metaShift").textContent = S.shiftNo;
   $("metaHalf").textContent  = S.phase === "full" ? "Game over"
                              : S.phase === "halftime" ? "Halftime"
@@ -806,11 +829,19 @@ function esc(s){
 function render(){
   /* ---- buttons ---- */
   var pb = $("btnPlay");
-  if(S.phase === "pre")           pb.textContent = "▶︎ Start 1st half";
-  else if(S.phase === "halftime") pb.textContent = "▶︎ Start 2nd half";
-  else if(S.phase === "full")     pb.textContent = "↻ New game";
-  else                            pb.textContent = S.running ? "❚❚ Pause" : "▶︎ Resume";
-  pb.className = "btn " + (S.running ? "stop" : "pri");
+  if(S.phase === "pre")           { pb.textContent = "▶︎ Start 1st half"; pb.className = "btn pri"; }
+  else if(S.phase === "halftime") { pb.textContent = "▶︎ Start 2nd half"; pb.className = "btn pri"; }
+  else if(S.phase === "full")     { pb.textContent = "↻ New game"; pb.className = "btn pri"; }
+  else if(S.halfOver && S.running) {
+    // Only while actually running does tapping this END the half (see startPlay).
+    // If halfOver-but-paused (e.g. reopened the app after it auto-paused on load),
+    // the button still just resumes — falls to the plain branch below instead.
+    pb.textContent = (S.half >= S.halves ? "🏁 End game" : "☕️ End half " + S.half);
+    pb.className = "btn warn";
+  } else {
+    pb.textContent = S.running ? "❚❚ Pause" : "▶︎ Resume";
+    pb.className = "btn " + (S.running ? "stop" : "pri");
+  }
   $("btnUndo").disabled = undoStack.length === 0;
 
   /* ---- throw-in + kickoff rows ---- */
@@ -923,12 +954,17 @@ function startPlay(){
   if(S.phase === "pre"){
     if(!S.field.length) fillField();
     S.half = 1; S.halfSec = 0; S.shiftSec = S.shiftLen; S.shiftNo = 1;
-    S.alerted = false; S.nag = 0; S.phase = "play"; S.running = true;
+    S.alerted = false; S.nag = 0; S.halfOver = false; S.phase = "play"; S.running = true;
   } else if(S.phase === "halftime"){
     S.half = 2; S.halfSec = 0; S.shiftSec = S.shiftLen;
-    S.shiftNo++; S.alerted = false; S.nag = 0; S.phase = "play"; S.running = true;
+    S.shiftNo++; S.alerted = false; S.nag = 0; S.halfOver = false; S.phase = "play"; S.running = true;
   } else if(S.phase === "full"){
     newGame(); return;
+  } else if(S.running && S.halfOver){
+    // Regulation time already passed — pausing now is how the coach explicitly
+    // ends the half/game, instead of it happening automatically at the buzzer.
+    S.running = false;
+    S.phase = (S.half >= S.halves) ? "full" : "halftime";
   } else {
     S.running = !S.running;
   }
@@ -1149,7 +1185,7 @@ function newGame(){
   S.assist={}; S.aseq={}; S.aseqN=0; S.askip=[];
   S.field=[]; S.bench = S.roster.map(function(p){ return p.id; });
   S.gameSec=0; S.halfSec=0; S.half=1; S.shiftSec=S.shiftLen; S.shiftNo=1;
-  S.running=false; S.alerted=false; S.phase="pre";
+  S.running=false; S.alerted=false; S.nag=0; S.halfOver=false; S.phase="pre";
   undoStack = []; sel = null;
   wake(false); render(); save(); tab(true);
   toast("New game ready", "Undo", function(){ restoreFullState(snapAll); });
