@@ -339,7 +339,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 
     <div class="selbar" id="selBar">
       <div class="selrow">
-        <div class="txt"><b id="selName">—</b><span id="selHint">Tap someone to swap</span></div>
+        <div class="txt"><b id="selName">—</b><span id="selHint">On the field</span></div>
         <button class="btn sm ghost" id="btnCancelSel">Cancel</button>
       </div>
       <div class="selrow2 hide" id="selTurnRow">
@@ -878,9 +878,7 @@ function render(){
   if(sel){
     sb.classList.add("show");
     $("selName").textContent = nameOf(sel.id);
-    $("selHint").textContent = sel.from === "field"
-      ? "Tap a resting player to swap them in"
-      : "Tap a player on the field to swap them out";
+    $("selHint").textContent = sel.from === "field" ? "On the field" : "Resting";
     $("btnSendOn").classList.toggle("hide", sel.from === "field");
     $("selTurnRow").classList.toggle("hide", sel.from !== "field");
     $("selScoreRow").classList.toggle("hide", sel.from !== "field");
@@ -986,17 +984,7 @@ function fillField(){
 function tapPlayer(id, where){
   hideToast();                                                     // a leftover Undo toast shouldn't block the next action
   if(sel && sel.id === id){ sel = null; render(); return; }        // tap again = deselect
-  if(sel && sel.from !== where){                                   // opposite group = swap
-    snap();
-    var offId = sel.from === "field" ? sel.id : id;
-    var onId  = sel.from === "field" ? id : sel.id;
-    swap(offId, onId);
-    if(S.shiftSec <= 0) resetShift(true);                          // shift was up — start it over
-    sel = null; render(); save();
-    toast(nameOf(onId) + " in for " + nameOf(offId), "Undo", undo);
-    return;
-  }
-  sel = { id:id, from:where };                                     // same group = change selection
+  sel = { id:id, from:where };                                     // change selection to whoever was tapped
   render();
 }
 
