@@ -5,7 +5,10 @@ import { getStore } from "@netlify/blobs";
 const KEY = "current-game";
 
 export default async (req) => {
-  const store = getStore("sideline");
+  // Strong consistency: this store sees far too little traffic to need the
+  // performance tradeoff eventual consistency exists for, and a coach's own
+  // action should never appear to have been lost on the very next poll.
+  const store = getStore({ name: "sideline", consistency: "strong" });
 
   if (req.method === "GET") {
     const data = await store.get(KEY, { type: "json" });
