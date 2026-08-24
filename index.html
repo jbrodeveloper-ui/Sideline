@@ -495,6 +495,7 @@ function load(){
    localStorage stays authoritative offline; this is a best-effort overlay that
    never blocks or throws on a flaky sideline connection. */
 var SYNC_URL = "/api/game-state";
+var reconciled = false;      // has the very first pull run yet?
 
 function pushRemote(){
   try{
@@ -523,7 +524,15 @@ function advance(state, dt){
 function pullRemote(){
   fetch(SYNC_URL).then(function(r){ return r.ok ? r.json() : null; }).then(function(remote){
     if(!remote || !remote.updatedAt) return;
-    if(remote.updatedAt <= (S.updatedAt || 0)) return;     // our copy is already this current or newer
+    // load() defensively sets running=false on every page load ("never resume
+    // time that passed while closed") since with no sync there was no safe way
+    // to know how long the app was closed. The first pull IS that safe way, so
+    // it also accepts an equal timestamp — this device's own last save — purely
+    // to undo that reset when the game was actually still running. Later polls
+    // stay strict (>) so an unchanged game doesn't re-render every 3 seconds.
+    var isNewer = reconciled ? (remote.updatedAt > S.updatedAt) : (remote.updatedAt >= (S.updatedAt || 0));
+    reconciled = true;
+    if(!isNewer) return;
     var elapsed = (Date.now() - remote.updatedAt) / 1000;
     if(elapsed > 0 && elapsed < 3600) advance(remote, elapsed);
     for(var k in DEF){ if(remote[k] !== undefined) S[k] = remote[k]; }
