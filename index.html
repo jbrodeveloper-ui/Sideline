@@ -182,6 +182,8 @@ body{
 .selrow2 .turnbtn.thr{background:var(--blue);border-color:var(--blue)}
 .selrow2 .turnbtn.kick{background:var(--green);border-color:var(--green)}
 .selrow2 .turnbtn.rest{background:var(--amber);border-color:var(--amber)}
+.selrow2 .turnbtn.on{background:var(--green);border-color:var(--green)}
+.selrow2 .turnbtn:disabled{opacity:.4}
 .selrow2 .turnbtn.goal{
   background:linear-gradient(90deg,#ff3b30,#ff9500,#ffcc00,#34c759,#007aff,#af52de,#ff3b30);
   background-size:300% 100%;border-color:transparent;color:#fff;
@@ -302,6 +304,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     </div>
     <div class="btns">
       <button class="btn ghost sm" id="btnUndo" style="flex:1">↶ Undo</button>
+      <button class="btn ghost sm" id="btnBulkMode" style="flex:1">☑️ Selector</button>
     </div>
 
     <div class="turns">
@@ -354,6 +357,17 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
         <button class="turnbtn rest" id="btnRest">😴 Rest</button>
       </div>
       <button class="btn pri hide" id="btnSendOn">▶️ Send On</button>
+    </div>
+
+    <div class="selbar" id="bulkBar">
+      <div class="selrow">
+        <div class="txt"><b id="bulkCount">0 selected</b><span id="bulkHint">Tap players to select them</span></div>
+        <button class="btn sm ghost" id="btnBulkDone">Done</button>
+      </div>
+      <div class="selrow2">
+        <button class="turnbtn rest" id="btnBulkRest">😴 Rest</button>
+        <button class="turnbtn on" id="btnBulkOn">▶️ Put on Field</button>
+      </div>
     </div>
   </section>
 
@@ -453,6 +467,8 @@ var DEF = {
 };
 var S = JSON.parse(JSON.stringify(DEF));
 var sel = null;              // {id, from:'field'|'bench'}
+var bulkMode = false;        // Selector mode: on/off
+var bulkSel = {};            // id -> true, while bulkMode is on
 var undoStack = [];
 var lastTs = Date.now();
 
@@ -798,7 +814,8 @@ function paint(){   /* cheap, runs 4x a second — only touches numbers */
 function playerRow(id, where, rank){
   var p = P(id) || {name:"?", num:""};
   var b = document.createElement("button");
-  b.className = "row " + where + (sel && sel.id === id ? " sel" : "");
+  var picked = bulkMode ? !!bulkSel[id] : (sel && sel.id === id);
+  b.className = "row " + where + (picked ? " sel" : "");
   b.setAttribute("data-id", id);
 
   var rankTag = "";
@@ -845,6 +862,8 @@ function render(){
     pb.className = "btn " + (S.running ? "stop" : "pri");
   }
   $("btnUndo").disabled = undoStack.length === 0;
+  $("btnBulkMode").classList.toggle("hot", bulkMode);
+  $("btnBulkMode").classList.toggle("ghost", !bulkMode);
 
   /* ---- throw-in + kickoff rows ---- */
   renderTurn("thr", "thrName", "thrSub", "btnThrTook", "btnThrSkip");
@@ -884,6 +903,21 @@ function render(){
     $("selScoreRow").classList.toggle("hide", sel.from !== "field");
     $("selRestRow").classList.toggle("hide", sel.from !== "field");
   } else sb.classList.remove("show");
+
+  /* ---- bulk selector bar ---- */
+  var bb = $("bulkBar");
+  bb.classList.toggle("show", bulkMode);
+  if(bulkMode){
+    var pickedN = Object.keys(bulkSel).length;
+    var offN = S.field.filter(function(id){ return bulkSel[id]; }).length;
+    var onN  = S.bench.filter(function(id){ return bulkSel[id]; }).length;
+    $("bulkCount").textContent = pickedN + (pickedN === 1 ? " selected" : " selected");
+    $("bulkHint").textContent = pickedN ? "Choose an action below" : "Tap players to select them";
+    $("btnBulkRest").textContent = "😴 Rest" + (offN ? " (" + offN + ")" : "");
+    $("btnBulkOn").textContent = "▶️ Put on Field" + (onN ? " (" + onN + ")" : "");
+    $("btnBulkRest").disabled = !offN;
+    $("btnBulkOn").disabled = !onN;
+  }
 
   renderTeam();
   paint();
@@ -1005,11 +1039,42 @@ function moveAlone(triggerEl){
   movePlayer(sel.id, sel.from, triggerEl);
 }
 
+/* ---- Selector: multi-pick players from either list, then bulk-rest or bulk-send-on ---- */
+function setBulkMode(on){
+  bulkMode = on;
+  bulkSel = {};
+  if(on) sel = null;          // the two selection modes are mutually exclusive
+  render();
+}
+function toggleBulk(id){
+  if(bulkSel[id]) delete bulkSel[id]; else bulkSel[id] = true;
+  render();
+}
+function bulkRest(){
+  var ids = S.field.filter(function(id){ return bulkSel[id]; });
+  if(!ids.length) return;
+  snap();
+  ids.forEach(function(id){ moveTo(id, "bench"); delete bulkSel[id]; });
+  if(S.shiftSec <= 0) resetShift(true);
+  render(); save();
+  toast(ids.length + (ids.length === 1 ? " player" : " players") + " sent to rest", "Undo", undo);
+}
+function bulkOn(){
+  var ids = S.bench.filter(function(id){ return bulkSel[id]; });
+  if(!ids.length) return;
+  snap();
+  ids.forEach(function(id){ moveTo(id, "field"); delete bulkSel[id]; });
+  if(S.shiftSec <= 0) resetShift(true);
+  render(); save();
+  toast(ids.length + (ids.length === 1 ? " player" : " players") + " sent on the field", "Undo", undo);
+}
+
 function listTap(e){
   var row = e.target.closest ? e.target.closest(".row") : null;
   if(!row) return;
   var id = row.getAttribute("data-id");
   var where = row.classList.contains("field") ? "field" : "bench";
+  if(bulkMode){ toggleBulk(id); return; }
   if(!sel){
     var clockEl = e.target.closest(".clock");     // tapping the Rest/Play pill acts instantly
     if(clockEl){ movePlayer(id, where, clockEl); return; }
@@ -1029,6 +1094,10 @@ $("btnKickSkip").addEventListener("click", function(){ skipTurn("kick"); });
 $("btnSendOn").addEventListener("click", function(){ moveAlone($("btnSendOn")); });
 $("btnRest").addEventListener("click", function(){ moveAlone($("btnRest")); });
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
+$("btnBulkMode").addEventListener("click", function(){ setBulkMode(!bulkMode); });
+$("btnBulkDone").addEventListener("click", function(){ setBulkMode(false); });
+$("btnBulkRest").addEventListener("click", bulkRest);
+$("btnBulkOn").addEventListener("click", bulkOn);
 $("btnCreditThrow").addEventListener("click", function(){
   if(!sel) return;
   celebrateThrow($("btnCreditThrow"));
