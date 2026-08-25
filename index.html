@@ -93,28 +93,25 @@ body{
 /* ---------- throw-in / kickoff turns ---------- */
 .turns{margin-top:12px;display:flex;flex-direction:column;gap:8px}
 .turn{border-radius:15px;padding:11px 12px;display:flex;align-items:center;gap:10px;border:1px solid}
-.turn.thr {background:var(--bluebg); border-color:var(--blue)}
-.turn.kick{background:var(--greenbg);border-color:var(--green)}
+.turn.up{background:var(--card);border-color:var(--line);box-shadow:var(--shadow);
+         flex-direction:column;align-items:stretch;gap:10px}
 .turn .ico{font-size:23px;line-height:1;flex:0 0 auto}
 .turn .who{flex:1;min-width:0}
-.turn .lab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
-.turn.thr  .lab{color:var(--blue)}
-.turn.kick .lab{color:var(--green)}
+.turn .lab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .turn .nm{font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.15;
           white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .turn .sub{font-size:11.5px;color:var(--dim);margin-top:1px;
            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.turn .acts{display:flex;gap:6px;flex:0 0 auto}
-.turn .acts button{border-radius:10px;border:1px solid;font-weight:800;font-size:13.5px;
-                   padding:11px 11px;white-space:nowrap;color:#fff}
-.turn.thr  .acts button{background:var(--blue); border-color:var(--blue)}
-.turn.kick .acts button{background:var(--green);border-color:var(--green)}
-.turn .acts button.alt{background:transparent;font-weight:700}
-.turn.thr  .acts button.alt{color:var(--blue)}
-.turn.kick .acts button.alt{color:var(--green)}
-.turn .acts button:disabled{opacity:.45}
-@media (prefers-color-scheme:dark){.turn .acts button{color:#08101f}
-  .turn .acts button.alt{color:var(--blue)} .turn.kick .acts button.alt{color:var(--green)}}
+.uphead{display:flex;align-items:center;gap:10px}
+.upacts{display:flex;gap:8px}
+.upacts button{flex:1;border-radius:11px;border:1px solid;font-weight:800;font-size:14px;
+               padding:13px 8px;white-space:nowrap;color:#fff}
+.upacts button.thr {background:var(--blue); border-color:var(--blue)}
+.upacts button.kick{background:var(--green);border-color:var(--green)}
+.turn .skip{flex:0 0 auto;border-radius:10px;border:1px solid var(--line);background:transparent;
+            color:var(--dim);font-weight:700;font-size:13.5px;padding:11px 13px}
+.upacts button:disabled,.turn .skip:disabled{opacity:.45}
+@media (prefers-color-scheme:dark){.upacts button{color:#08101f}}
 
 /* ---------- section headers ---------- */
 .sec{display:flex;align-items:baseline;gap:8px;margin:20px 2px 8px}
@@ -308,28 +305,19 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
     </div>
 
     <div class="turns">
-      <div class="turn thr">
-        <div class="ico">🙌</div>
-        <div class="who">
-          <div class="lab">Next throw-in</div>
-          <div class="nm" id="thrName">—</div>
-          <div class="sub" id="thrSub">Add players to get started</div>
+      <div class="turn up">
+        <div class="uphead">
+          <div class="ico">🔁</div>
+          <div class="who">
+            <div class="lab">Next up</div>
+            <div class="nm" id="upName">—</div>
+            <div class="sub" id="upSub">Add players to get started</div>
+          </div>
+          <button id="btnUpSkip" class="skip">Skip</button>
         </div>
-        <div class="acts">
-          <button id="btnThrTook">Log it</button>
-          <button id="btnThrSkip" class="alt">Skip</button>
-        </div>
-      </div>
-      <div class="turn kick">
-        <div class="ico">⚽️</div>
-        <div class="who">
-          <div class="lab">Next kickoff</div>
-          <div class="nm" id="kickName">—</div>
-          <div class="sub" id="kickSub">Add players to get started</div>
-        </div>
-        <div class="acts">
-          <button id="btnKickTook">Log it</button>
-          <button id="btnKickSkip" class="alt">Skip</button>
+        <div class="upacts">
+          <button id="btnThrTook" class="thr">🙌 Throw-in</button>
+          <button id="btnKickTook" class="kick">⚽️ Kickoff</button>
         </div>
       </div>
     </div>
@@ -459,6 +447,9 @@ var DEF = {
   kskip:[],          // ids skipped for the current kickoff
   goal:   {}, gseq: {}, gseqN: 0, gskip: [],   // id -> goals scored (manual credit only, no queue)
   assist: {}, aseq: {}, aseqN: 0, askip: [],   // id -> assists (manual credit only, no queue)
+  useq: {},          // id -> order marker of their last extra job, throw-in OR kickoff (0 = never)
+  useqN: 0,
+  uskip: [],         // ids skipped for the current extra job
   gameSec: 0, halfSec: 0, half: 1, halves: 2,
   shiftLen: 300, shiftSec: 300, shiftNo: 1,
   halfLen: 15, fieldSize: 5, subsPer: 3,
@@ -562,7 +553,8 @@ function snap(){
     thr:S.thr,   seq:S.seq,   seqN:S.seqN,   skip:S.skip,
     kick:S.kick, kseq:S.kseq, kseqN:S.kseqN, kskip:S.kskip,
     goal:S.goal, gseq:S.gseq, gseqN:S.gseqN, gskip:S.gskip,
-    assist:S.assist, aseq:S.aseq, aseqN:S.aseqN, askip:S.askip
+    assist:S.assist, aseq:S.aseq, aseqN:S.aseqN, askip:S.askip,
+    useq:S.useq, useqN:S.useqN, uskip:S.uskip
   }));
   if(undoStack.length > 25) undoStack.shift();
 }
@@ -574,6 +566,7 @@ function undo(){
   S.kick=o.kick; S.kseq=o.kseq; S.kseqN=o.kseqN; S.kskip=o.kskip;
   S.goal=o.goal; S.gseq=o.gseq; S.gseqN=o.gseqN; S.gskip=o.gskip;
   S.assist=o.assist; S.aseq=o.aseq; S.aseqN=o.aseqN; S.askip=o.askip;
+  S.useq=o.useq; S.useqN=o.useqN; S.uskip=o.uskip;
   sel = null; render(); save(); toast("Undone");
 }
 
@@ -672,7 +665,7 @@ function moveTo(id, dest){
   pull(S.field, id); pull(S.bench, id);
   (dest === "field" ? S.field : S.bench).push(id);
   S.stint[id] = 0;
-  S.skip = []; S.kskip = [];      // a sub ends whatever throw-in/kickoff was pending
+  S.skip = []; S.kskip = []; S.uskip = [];   // a sub ends whatever turn was pending
 }
 function swap(offId, onId){ moveTo(offId, "bench"); moveTo(onId, "field"); }
 
@@ -704,41 +697,49 @@ function autoSub(){
   toast(n === 1 ? pairs[0] : n + " subs made", "Undo", undo);
 }
 
-/* ============================ throw-ins ============================ */
+/* ============================ extra jobs ============================ */
 /* Four tallies, same shape. K describes each one so they can't drift apart.
-   thr/kick are fair rotations with a "next up" queue; goal/assist are manual-only
-   (nobody can predict who scores next) \u2014 they use creditTurn() directly, never queueFor(). */
+   Each keeps its own count and history (that's what the player-card badges show),
+   but throw-ins and kickoffs share ONE rotation - flagged `rotates` - so the queue
+   pools them and every kid ends up with the same number of extra jobs overall,
+   rather than the same number of each kind separately. goal/assist are manual-only
+   (nobody can predict who scores next): credited straight from the player sheet,
+   never queued. */
 var KINDS = {
-  thr:    { n:"thr",    seq:"seq",  seqN:"seqN",  skip:"skip",  verb:"throw-in", past:"took the throw-in", none:"Hasn\u2019t thrown in yet" },
-  kick:   { n:"kick",   seq:"kseq", seqN:"kseqN", skip:"kskip", verb:"kickoff",  past:"took the kickoff",  none:"Hasn\u2019t kicked off yet" },
-  goal:   { n:"goal",   seq:"gseq", seqN:"gseqN", skip:"gskip", verb:"goal",     past:"scored a goal",     none:"" },
-  assist: { n:"assist", seq:"aseq", seqN:"aseqN", skip:"askip", verb:"assist",   past:"got an assist",     none:"" }
+  thr:    { n:"thr",    seq:"seq",  seqN:"seqN",  skip:"skip",  rotates:true, verb:"throw-in", past:"took the throw-in" },
+  kick:   { n:"kick",   seq:"kseq", seqN:"kseqN", skip:"kskip", rotates:true, verb:"kickoff",  past:"took the kickoff"  },
+  goal:   { n:"goal",   seq:"gseq", seqN:"gseqN", skip:"gskip", verb:"goal",   past:"scored a goal" },
+  assist: { n:"assist", seq:"aseq", seqN:"aseqN", skip:"askip", verb:"assist", past:"got an assist" }
 };
+
+/* Extra jobs done so far — throw-ins and kickoffs pooled, since the whole point
+   is that they're interchangeable "you get to do a thing" turns. */
+function jobsDone(id){ return (S.thr[id] || 0) + (S.kick[id] || 0); }
 
 /* The whole queue, best pick first. Only players on the field are eligible —
    a resting player keeps their place and jumps back in line the moment they return. */
-function queueFor(k){
-  var K = KINDS[k];
+function queueUp(){
   var pool = S.field.filter(function(id){ return !isOut(id); });
-  var live = pool.filter(function(id){ return S[K.skip].indexOf(id) === -1; });
+  var live = pool.filter(function(id){ return S.uskip.indexOf(id) === -1; });
   if(!live.length) live = pool;                    // everyone skipped — start the round over
   return live.slice().sort(function(a,b){
-    return ((S[K.n][a]   ||0) - (S[K.n][b]   ||0))   // 1. fewest turns taken
-        || ((S[K.seq][a] ||0) - (S[K.seq][b] ||0))   // 2. longest since their last turn (never = first)
-        || ((S.play[a]   ||0) - (S.play[b]   ||0))   // 3. least game time — the kid who just came on
+    return (jobsDone(a) - jobsDone(b))               // 1. fewest extra jobs, either kind
+        || ((S.useq[a] ||0) - (S.useq[b] ||0))       // 2. longest since their last one (never = first)
+        || ((S.play[a] ||0) - (S.play[b] ||0))       // 3. least game time — the kid who just came on
         || 0;
   });
 }
-function nextUp(k){ var q = queueFor(k); return q.length ? q[0] : null; }
+function nextUp(){ var q = queueUp(); return q.length ? q[0] : null; }
 
 /* Credits a turn to a SPECIFIC player, bypassing the queue — used by the
-   auto "next up" cards (id = nextUp(k)) and by manually tapping a field player. */
+   "next up" card (id = nextUp()) and by manually tapping a field player. */
 function creditTurn(k, id){
   var K = KINDS[k];
   snap();
   S[K.n][id]   = (S[K.n][id] || 0) + 1;
   S[K.seq][id] = ++S[K.seqN];
   S[K.skip]    = [];
+  if(K.rotates){ S.useq[id] = ++S.useqN; S.uskip = []; }   // advances the shared rotation
   sel = null;
   render(); save();
   toast(nameOf(id) + " " + K.past, "Undo", undo);
@@ -801,18 +802,19 @@ function celebratePlay(btn){
   burstFrom(btn, {glyphs:["⚡","✨","🏃"], count:8, angleMid:-Math.PI/2, angleSpread:Math.PI*1.2,
     minDist:30, distRange:26, minSize:13, sizeRange:6, spin:300, duration:0.7});
 }
-function tookTurn(k){
-  var id = nextUp(k);
+function tookTurn(k, triggerEl){
+  var id = nextUp();
   if(!id){ toast("No one is on the field"); return; }
   creditTurn(k, id);
+  if(triggerEl) (k === "thr" ? celebrateThrow : celebrateKick)(triggerEl);
 }
-function skipTurn(k){
-  var K = KINDS[k], id = nextUp(k);
+function skipTurn(){
+  var id = nextUp();
   if(!id) return;
   snap();
-  if(S[K.skip].indexOf(id) === -1) S[K.skip].push(id);
+  if(S.uskip.indexOf(id) === -1) S.uskip.push(id);
   render(); save();
-  toast("Skipped " + nameOf(id) + " for the " + K.verb);
+  toast(nameOf(id) + " skipped — next player is up");
 }
 
 /* ============================ rendering ============================ */
@@ -917,8 +919,7 @@ function render(){
   $("btnBulkMode").classList.toggle("ghost", !bulkMode);
 
   /* ---- throw-in + kickoff rows ---- */
-  renderTurn("thr", "thrName", "thrSub", "btnThrTook", "btnThrSkip");
-  renderTurn("kick", "kickName", "kickSub", "btnKickTook", "btnKickSkip");
+  renderUp();
 
   /* ---- field ---- */
   var fl = $("fieldList"); fl.innerHTML = "";
@@ -974,20 +975,22 @@ function render(){
   paint();
 }
 
-function renderTurn(k, nameId, subId, tookId, skipId){
-  var K = KINDS[k], q = queueFor(k), id = q.length ? q[0] : null;
+function renderUp(){
+  var q = queueUp(), id = q.length ? q[0] : null;
   if(id){
-    var c = S[K.n][id] || 0;
+    var c = jobsDone(id);
     var after = q.slice(1, 3).map(nameOf).join(", ");
-    $(nameId).textContent = nameOf(id);
-    $(subId).textContent  = (c === 0 ? K.none : c + " so far") +
-                            (after ? " · then " + after : "");
+    $("upName").textContent = nameOf(id);
+    $("upSub").textContent  = (c === 0 ? "No turns yet" : c + " so far") +
+                              (after ? " · then " + after : "");
   } else {
-    $(nameId).textContent = "—";
-    $(subId).textContent  = S.roster.length ? "Put players on the field first"
-                                            : "Add players on the Team tab";
+    $("upName").textContent = "—";
+    $("upSub").textContent  = S.roster.length ? "Put players on the field first"
+                                              : "Add players on the Team tab";
   }
-  $(tookId).disabled = !id; $(skipId).disabled = !id;
+  $("btnThrTook").disabled = !id;
+  $("btnKickTook").disabled = !id;
+  $("btnUpSkip").disabled   = !id;
 }
 
 /* ============================ team view ============================ */
@@ -1138,10 +1141,9 @@ $("benchList").addEventListener("click", listTap);
 $("btnPlay").addEventListener("click", startPlay);
 $("btnResetShift").addEventListener("click", function(){ resetShift(); render(); save(); });
 $("btnUndo").addEventListener("click", undo);
-$("btnThrTook").addEventListener("click", function(){ tookTurn("thr"); });
-$("btnThrSkip").addEventListener("click", function(){ skipTurn("thr"); });
-$("btnKickTook").addEventListener("click", function(){ tookTurn("kick"); });
-$("btnKickSkip").addEventListener("click", function(){ skipTurn("kick"); });
+$("btnThrTook").addEventListener("click", function(){ tookTurn("thr", $("btnThrTook")); });
+$("btnKickTook").addEventListener("click", function(){ tookTurn("kick", $("btnKickTook")); });
+$("btnUpSkip").addEventListener("click", skipTurn);
 $("btnSendOn").addEventListener("click", function(){ moveAlone($("btnSendOn")); });
 $("btnRest").addEventListener("click", function(){ moveAlone($("btnRest")); });
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
@@ -1189,7 +1191,7 @@ function addPlayer(){
   var id = "p" + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
   S.roster.push({ id:id, name:name, num:num });
   S.play[id]=0; S.rest[id]=0; S.stint[id]=0; S.thr[id]=0; S.seq[id]=0; S.kick[id]=0; S.kseq[id]=0;
-  S.goal[id]=0; S.gseq[id]=0; S.assist[id]=0; S.aseq[id]=0;
+  S.goal[id]=0; S.gseq[id]=0; S.assist[id]=0; S.aseq[id]=0; S.useq[id]=0;
   S.bench.push(id);
   $("inName").value = ""; $("inNum").value = "";
   render(); save();
@@ -1216,14 +1218,16 @@ $("rosterList").addEventListener("click", function(e){
       player: p, wasField: wasField, wasBench: wasBench, wasOut: isOut(del),
       play: S.play[del], rest: S.rest[del], stint: S.stint[del],
       thr: S.thr[del], seq: S.seq[del], kick: S.kick[del], kseq: S.kseq[del],
-      goal: S.goal[del], gseq: S.gseq[del], assist: S.assist[del], aseq: S.aseq[del]
+      goal: S.goal[del], gseq: S.gseq[del], assist: S.assist[del], aseq: S.aseq[del],
+      useq: S.useq[del]
     };
     S.roster = S.roster.filter(function(x){ return x.id !== del; });
     pull(S.field, del); pull(S.bench, del); pull(S.out, del); pull(S.skip, del); pull(S.kskip, del);
-    pull(S.gskip, del); pull(S.askip, del);
+    pull(S.gskip, del); pull(S.askip, del); pull(S.uskip, del);
     delete S.play[del]; delete S.rest[del]; delete S.stint[del];
     delete S.thr[del]; delete S.seq[del]; delete S.kick[del]; delete S.kseq[del];
     delete S.goal[del]; delete S.gseq[del]; delete S.assist[del]; delete S.aseq[del];
+    delete S.useq[del];
     if(sel && sel.id === del) sel = null;
     render(); save();
     toast("Removed " + p.name, "Undo", function(){ undeletePlayer(snapDel); });
@@ -1236,6 +1240,7 @@ function undeletePlayer(s){
   S.play[id]=s.play; S.rest[id]=s.rest; S.stint[id]=s.stint;
   S.thr[id]=s.thr; S.seq[id]=s.seq; S.kick[id]=s.kick; S.kseq[id]=s.kseq;
   S.goal[id]=s.goal; S.gseq[id]=s.gseq; S.assist[id]=s.assist; S.aseq[id]=s.aseq;
+  S.useq[id]=s.useq;
   if(s.wasOut) S.out.push(id);
   if(s.wasField !== -1) S.field.splice(Math.min(s.wasField, S.field.length), 0, id);
   else if(s.wasBench !== -1) S.bench.splice(Math.min(s.wasBench, S.bench.length), 0, id);
@@ -1294,6 +1299,7 @@ function newGame(){
   S.kick={}; S.kseq={}; S.kseqN=0; S.kskip=[];
   S.goal={}; S.gseq={}; S.gseqN=0; S.gskip=[];
   S.assist={}; S.aseq={}; S.aseqN=0; S.askip=[];
+  S.useq={}; S.useqN=0; S.uskip=[];
   S.field=[]; S.bench = S.roster.map(function(p){ return p.id; });
   S.gameSec=0; S.halfSec=0; S.half=1; S.shiftSec=S.shiftLen; S.shiftNo=1;
   S.running=false; S.alerted=false; S.nag=0; S.halfOver=false; S.phase="pre";
