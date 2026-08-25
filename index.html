@@ -228,6 +228,16 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .chip.here{background:var(--greenbg);border-color:var(--green);color:var(--green)}
 .chip.away{background:var(--redbg);border-color:var(--red);color:var(--red)}
 .x{border:0;background:transparent;color:var(--faint);font-size:20px;padding:6px 4px;line-height:1}
+.pen{border:0;background:transparent;font-size:15px;padding:6px 5px;line-height:1;opacity:.65}
+.prow.edit{gap:7px}
+.prow.edit input{padding:10px}
+.prow.edit input.n{flex:0 0 60px;text-align:center}
+.prow.edit input.nm{flex:1;min-width:0}
+.prow .ok{flex:0 0 auto;border:1px solid var(--green);background:var(--green);color:#fff;
+          border-radius:10px;padding:10px 13px;font-weight:800;font-size:14px}
+.prow .no{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--dim);
+          border-radius:10px;padding:10px 11px;font-weight:700;font-size:14px}
+@media (prefers-color-scheme:dark){.prow .ok{color:#08101f}}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fld label{display:block;font-size:12px;font-weight:700;color:var(--dim);margin-bottom:5px;
            text-transform:uppercase;letter-spacing:.06em}
@@ -402,14 +412,7 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
             <input id="setSize" type="number" inputmode="numeric" min="1" max="11" step="1">
             <button type="button" class="stepbtn plus" data-target="setSize">+</button>
           </div></div>
-        <div class="fld"><label>Subs per shift</label>
-          <div class="stepper">
-            <button type="button" class="stepbtn minus" data-target="setSubs">−</button>
-            <input id="setSubs" type="number" inputmode="numeric" min="1" max="11" step="1">
-            <button type="button" class="stepbtn plus" data-target="setSubs">+</button>
-          </div></div>
       </div>
-      <div class="hint">“Subs per shift” controls how many players swap at once when auto-subbing is enabled.</div>
       <div class="hr"></div>
       <div class="btns">
         <button class="btn pri" id="btnNewGame">New game</button>
@@ -452,13 +455,14 @@ var DEF = {
   uskip: [],         // ids skipped for the current extra job
   gameSec: 0, halfSec: 0, half: 1, halves: 2,
   shiftLen: 300, shiftSec: 300, shiftNo: 1,
-  halfLen: 15, fieldSize: 5, subsPer: 3,
+  halfLen: 15, fieldSize: 5,
   running: false, alerted: false, nag: 0, halfOver: false,
   phase: "pre",      // pre | play | halftime | full
   updatedAt: 0        // ms timestamp of the last save — lets synced devices tell whose copy is newer
 };
 var S = JSON.parse(JSON.stringify(DEF));
 var sel = null;              // {id, from:'field'|'bench'}
+var editing = null;          // {id, name, num} while renaming someone on the roster
 var bulkMode = false;        // Selector mode: on/off
 var bulkSel = {};            // id -> true, while bulkMode is on
 var undoStack = [];
@@ -515,6 +519,7 @@ function advance(state, dt){
 function pullRemote(){
   fetch(SYNC_URL).then(function(r){ return r.ok ? r.json() : null; }).then(function(remote){
     if(!remote || !remote.updatedAt) return;
+    if(editing) return;            // never rebuild the roster out from under an open rename
     // load() defensively sets running=false on every page load ("never resume
     // time that passed while closed") since with no sync there was no safe way
     // to know how long the app was closed. The first pull IS that safe way, so
@@ -667,7 +672,6 @@ function moveTo(id, dest){
   S.stint[id] = 0;
   S.skip = []; S.kskip = []; S.uskip = [];   // a sub ends whatever turn was pending
 }
-function swap(offId, onId){ moveTo(offId, "bench"); moveTo(onId, "field"); }
 
 function resetShift(quiet){
   S.shiftSec = S.shiftLen;
@@ -676,26 +680,6 @@ function resetShift(quiet){
   if(!quiet) toast("Shift timer restarted");
 }
 
-function autoSub(){
-  var offPool = S.field.slice().sort(function(a,b){ return (S.play[b]||0) - (S.play[a]||0); });
-  var onPool  = benchIn().sort(function(a,b){ return (S.rest[b]||0) - (S.rest[a]||0); });
-  var n = Math.min(S.subsPer, offPool.length, onPool.length);
-
-  if(!n){
-    if(!onPool.length) toast(S.bench.length ? "Everyone on the bench is marked Out" : "Nobody is resting to sub in");
-    else toast("Nobody is on the field yet");
-    return;
-  }
-  snap();
-  var pairs = [];
-  for(var i=0;i<n;i++){
-    swap(offPool[i], onPool[i]);
-    pairs.push(nameOf(onPool[i]) + " ⇢ in, " + nameOf(offPool[i]) + " ⇢ out");
-  }
-  resetShift(true);
-  sel = null; render(); save();
-  toast(n === 1 ? pairs[0] : n + " subs made", "Undo", undo);
-}
 
 /* ============================ extra jobs ============================ */
 /* Four tallies, same shape. K describes each one so they can't drift apart.
@@ -1003,15 +987,29 @@ function renderTeam(){
     rl.innerHTML = '<div class="empty">No players yet. Add them above.</div>';
   }
   S.roster.forEach(function(p){
-    var out = isOut(p.id);
     var d = document.createElement("div");
-    d.className = "prow" + (out ? " out" : "");
-    d.innerHTML =
-      '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
-      '<span class="info"><span class="name">' + esc(p.name) + '</span></span>' +
-      '<button class="chip ' + (out ? "away" : "here") + '" data-att="' + p.id + '">' +
-        (out ? "Out" : "Here") + '</button>' +
-      '<button class="x" data-del="' + p.id + '">✕</button>';
+    if(editing && editing.id === p.id){
+      /* values come from `editing`, not the roster, so a re-render mid-rename
+         (a teammate's sync arriving, a toast firing) can't wipe what was typed */
+      d.className = "prow edit";
+      d.innerHTML =
+        '<input class="n num" data-ed="num" type="text" inputmode="numeric" placeholder="#" ' +
+          'maxlength="3" autocomplete="off" value="' + esc(editing.num) + '">' +
+        '<input class="nm" data-ed="name" type="text" placeholder="Player name" ' +
+          'autocomplete="off" enterkeyhint="done" value="' + esc(editing.name) + '">' +
+        '<button class="ok" data-save="' + p.id + '">Save</button>' +
+        '<button class="no" data-cancel="' + p.id + '">Cancel</button>';
+    } else {
+      var out = isOut(p.id);
+      d.className = "prow" + (out ? " out" : "");
+      d.innerHTML =
+        '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
+        '<span class="info"><span class="name">' + esc(p.name) + '</span></span>' +
+        '<button class="pen" data-edit="' + p.id + '">✏️</button>' +
+        '<button class="chip ' + (out ? "away" : "here") + '" data-att="' + p.id + '">' +
+          (out ? "Out" : "Here") + '</button>' +
+        '<button class="x" data-del="' + p.id + '">✕</button>';
+    }
     rl.appendChild(d);
   });
 
@@ -1174,6 +1172,7 @@ $("btnCreditAssist").addEventListener("click", function(){
 
 /* ---- tabs ---- */
 function tab(game){
+  editing = null;                  // don't leave a half-finished rename hanging around
   $("viewGame").classList.toggle("hide", !game);
   $("viewTeam").classList.toggle("hide", game);
   $("tabGame").classList.toggle("on", game);
@@ -1201,10 +1200,59 @@ $("btnAdd").addEventListener("click", addPlayer);
 $("inName").addEventListener("keydown", function(e){ if(e.key === "Enter") addPlayer(); });
 $("inNum").addEventListener("keydown", function(e){ if(e.key === "Enter") $("inName").focus(); });
 
+/* ---- rename / renumber a player, inline on their roster row ---- */
+function startEdit(id){
+  var p = P(id);
+  if(!p) return;
+  hideToast();
+  editing = { id:id, name:p.name, num:p.num };
+  render();
+  var el = document.querySelector('.prow.edit input[data-ed="name"]');
+  if(el){ el.focus(); el.select(); }
+}
+function saveEdit(){
+  if(!editing) return;
+  var pid = editing.id, p = P(pid);
+  if(!p){ editing = null; render(); return; }
+  var name = (editing.name || "").trim();
+  var num  = (editing.num  || "").trim();
+  if(!name){                                    // a nameless player is unusable everywhere else
+    var el = document.querySelector('.prow.edit input[data-ed="name"]');
+    if(el) el.focus();
+    toast("Give them a name first");
+    return;
+  }
+  var prev = { name:p.name, num:p.num };
+  editing = null;
+  if(name === prev.name && num === prev.num){ render(); return; }
+  p.name = name; p.num = num;
+  render(); save();
+  toast("Updated " + name, "Undo", function(){
+    var q = P(pid);                             // re-look-up: a sync may have replaced the array
+    if(!q) return;
+    q.name = prev.name; q.num = prev.num;
+    render(); save(); toast("Change undone");
+  });
+}
+
+$("rosterList").addEventListener("input", function(e){
+  var f = e.target.getAttribute && e.target.getAttribute("data-ed");
+  if(f && editing) editing[f] = e.target.value;
+});
+$("rosterList").addEventListener("keydown", function(e){
+  if(!editing) return;
+  if(e.key === "Enter"){ e.preventDefault(); saveEdit(); }
+  else if(e.key === "Escape"){ editing = null; render(); }
+});
+
 $("rosterList").addEventListener("click", function(e){
   var t = e.target;
   var att = t.getAttribute && t.getAttribute("data-att");
   var del = t.getAttribute && t.getAttribute("data-del");
+  var ed  = t.getAttribute && t.getAttribute("data-edit");
+  if(ed){ startEdit(ed); return; }
+  if(t.getAttribute && t.getAttribute("data-save")){ saveEdit(); return; }
+  if(t.getAttribute && t.getAttribute("data-cancel")){ editing = null; render(); return; }
   if(att){
     if(isOut(att)) pull(S.out, att);
     else { S.out.push(att); moveTo(att, "bench"); if(sel && sel.id === att) sel = null; }
@@ -1267,7 +1315,6 @@ bindNum("setShift", "shiftLen", 1, 45, 60, function(){
 });
 bindNum("setHalf",  "halfLen",  1, 60, 1);
 bindNum("setSize",  "fieldSize",1, 11, 1);
-bindNum("setSubs",  "subsPer",  1, 11, 1);
 
 document.querySelectorAll(".stepbtn").forEach(function(btn){
   btn.addEventListener("click", function(){
@@ -1283,13 +1330,12 @@ function syncSettings(){
   $("setShift").value = S.shiftLen / 60;
   $("setHalf").value  = S.halfLen;
   $("setSize").value  = S.fieldSize;
-  $("setSubs").value  = S.subsPer;
 }
 
 /* Full-state undo for New Game / Erase — restores every S key from a deep-cloned snapshot. */
 function restoreFullState(snap){
   for(var k in snap){ S[k] = snap[k]; }
-  sel = null;
+  sel = null; editing = null;
   syncSettings(); render(); save();
   toast("Restored");
 }
@@ -1313,7 +1359,7 @@ $("btnWipe").addEventListener("click", function(){
   try{ localStorage.removeItem(KEY); }catch(e){}
   var fresh = JSON.parse(JSON.stringify(DEF));
   for(var k in fresh){ S[k] = fresh[k]; }
-  undoStack = []; sel = null;
+  undoStack = []; sel = null; editing = null;
   syncSettings(); render(); save();
   toast("Everything erased", "Undo", function(){ restoreFullState(snapAll); });
 });
