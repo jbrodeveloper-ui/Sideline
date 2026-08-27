@@ -141,6 +141,9 @@ body{
       text-overflow:ellipsis;display:block}
 .stats{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
        gap:3px;font-size:12px;color:var(--dim);text-align:center}
+.stats > span{white-space:nowrap}
+.stats .gkt{color:var(--amber)}
+.stats .gkt::before{content:"🧤 "}
 .tag{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;
      border-radius:5px;font-style:normal;white-space:nowrap}
 .tag.off{background:var(--redbg);color:var(--red);position:absolute;top:-9px;right:60px;
@@ -259,8 +262,9 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .stepbtn.plus{border-left:1px solid var(--line)}
 .mrow{display:flex;align-items:center;gap:10px;padding:7px 0}
 .mbar{flex:1;height:9px;border-radius:5px;background:var(--card2);overflow:hidden;border:1px solid var(--line)}
-.mbar .fill{display:block;height:100%;background:var(--green);border-radius:5px;overflow:hidden}
-.mbar .fill .gk{display:block;height:100%;background:var(--amber)}
+.mbar .fill{position:relative;display:block;height:100%;background:var(--green);
+            border-radius:5px;overflow:hidden}
+.mbar .fill .gk{position:absolute;right:0;top:0;height:100%;background:var(--amber)}
 .mrow .mn{flex:0 0 108px;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mrow .mt{flex:0 0 auto;min-width:52px;text-align:right;font-size:14px;font-weight:800}
 .mrow .mt em{font-style:normal;color:var(--amber)}
@@ -722,8 +726,14 @@ function jobsDone(id){ return (S.thr[id] || 0) + (S.kick[id] || 0); }
    a resting player keeps their place and jumps back in line the moment they return. */
 function queueUp(){
   var pool = S.field.filter(function(id){ return !isOut(id); });
-  var live = pool.filter(function(id){ return S.uskip.indexOf(id) === -1; });
-  if(!live.length) live = pool;                    // everyone skipped — start the round over
+  /* The keeper doesn't run up the pitch for a throw-in or a kickoff, so they sit
+     out of the rotation while they're in goal — and rejoin with their turn count
+     intact the moment they come out, which puts them near the front since they
+     missed turns while keeping. */
+  var out = pool.filter(function(id){ return id !== S.gk; });
+  if(!out.length) out = pool;                      // keeper is somehow the only one on the field
+  var live = out.filter(function(id){ return S.uskip.indexOf(id) === -1; });
+  if(!live.length) live = out;                     // everyone skipped — start the round over
   return live.slice().sort(function(a,b){
     return (jobsDone(a) - jobsDone(b))               // 1. fewest extra jobs, either kind
         || ((S.useq[a] ||0) - (S.useq[b] ||0))       // 2. longest since their last one (never = first)
@@ -865,6 +875,7 @@ function paint(){   /* cheap, runs 4x a second — only touches numbers */
     parts = els[i].getAttribute("data-t").split(":");
     v = parts[0] === "s" ? (S.stint[parts[1]]||0)
       : parts[0] === "p" ? (S.play[parts[1]]||0)
+      : parts[0] === "k" ? (S.keep[parts[1]]||0)
       : (S.rest[parts[1]]||0);
     els[i].textContent = mmss(v);
   }
@@ -891,7 +902,10 @@ function playerRow(id, where, rank){
       '<span class="name">' + esc(p.name) + '</span>' +
     '</span>' +
     '<span class="stats">' + turnsTag +
-      '<span>Played <b class="num" data-t="p:' + id + '">0:00</b></span>' +
+      '<span>Played <b class="num" data-t="p:' + id + '">0:00</b>' +
+        ((S.gk === id || (S.keep[id] || 0) > 0)
+          ? ' <b class="num gkt" data-t="k:' + id + '">0:00</b>' : '') +
+      '</span>' +
     '</span>' +
     '<span class="clock">' + rankTag +
       '<b class="num" data-t="s:' + id + '">0:00</b>' +
@@ -1056,7 +1070,7 @@ function renderTeam(){
                   '<span class="mbar"><span class="fill" style="width:' + Math.round(v/max*100) + '%">' +
                     (g > 0 ? '<i class="gk" style="width:' + Math.round(g/(v||1)*100) + '%"></i>' : '') +
                   '</span></span>' +
-                  '<span class="mt num">' + mmss(v) + (g > 0 ? ' <em>' + mmss(g) + '</em>' : '') + '</span>';
+                  '<span class="mt num">' + (g > 0 ? '<em>' + mmss(g) + '</em> ' : '') + mmss(v) + '</span>';
     ml.appendChild(d);
   });
   var sp = document.createElement("div");
