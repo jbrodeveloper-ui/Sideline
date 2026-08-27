@@ -147,6 +147,8 @@ body{
          box-shadow:0 1px 3px rgba(13,23,48,.18)}
 .tag.on{background:var(--greenbg);color:var(--green);position:absolute;top:-9px;right:60px;
         box-shadow:0 1px 3px rgba(13,23,48,.18)}
+.tag.gk{background:var(--amberbg);color:var(--amber);position:absolute;top:-9px;left:12px;
+        box-shadow:0 1px 3px rgba(13,23,48,.18)}
 .tag.ti{background:var(--bluebg);color:var(--blue)}
 .clock{flex:0 0 auto;text-align:right}
 .clock b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
@@ -187,6 +189,7 @@ body{
   text-shadow:0 1px 2px rgba(0,0,0,.35);animation:goalRainbow 4s linear infinite;
 }
 .selrow2 .turnbtn.assist{background:transparent;border-color:var(--gold);color:var(--gold)}
+.selrow2 .turnbtn.gkbtn{background:transparent;border-color:var(--amber);color:var(--amber)}
 @keyframes goalRainbow{0%{background-position:0% 50%}100%{background-position:300% 50%}}
 @media (prefers-reduced-motion:reduce){.selrow2 .turnbtn.goal{animation:none}}
 .star-burst{
@@ -202,6 +205,7 @@ body{
   .selrow2 .turnbtn{color:#08101f}
   .selrow2 .turnbtn.goal{color:#fff}
   .selrow2 .turnbtn.assist{color:var(--gold)}
+  .selrow2 .turnbtn.gkbtn{color:var(--amber)}
 }
 
 /* ---------- team view ---------- */
@@ -255,9 +259,11 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .stepbtn.plus{border-left:1px solid var(--line)}
 .mrow{display:flex;align-items:center;gap:10px;padding:7px 0}
 .mbar{flex:1;height:9px;border-radius:5px;background:var(--card2);overflow:hidden;border:1px solid var(--line)}
-.mbar i{display:block;height:100%;background:var(--green);border-radius:5px}
+.mbar .fill{display:block;height:100%;background:var(--green);border-radius:5px;overflow:hidden}
+.mbar .fill .gk{display:block;height:100%;background:var(--amber)}
 .mrow .mn{flex:0 0 108px;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mrow .mt{flex:0 0 52px;text-align:right;font-size:14px;font-weight:800}
+.mrow .mt{flex:0 0 auto;min-width:52px;text-align:right;font-size:14px;font-weight:800}
+.mrow .mt em{font-style:normal;color:var(--amber)}
 .empty{text-align:center;color:var(--faint);font-size:14px;padding:22px 12px;line-height:1.5}
 .hint{font-size:12.5px;color:var(--faint);line-height:1.5;margin-top:8px}
 .hr{height:1px;background:var(--line);margin:14px 0}
@@ -350,6 +356,9 @@ input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
       <div class="selrow2 hide" id="selScoreRow">
         <button class="turnbtn goal" id="btnCreditGoal">🥅 Goal</button>
         <button class="turnbtn assist" id="btnCreditAssist">🎯 Assist</button>
+      </div>
+      <div class="selrow2 hide" id="selGkRow">
+        <button class="turnbtn gkbtn" id="btnGoalie">🧤 Make goalie</button>
       </div>
       <div class="selrow2 hide" id="selRestRow">
         <button class="turnbtn rest" id="btnRest">😴 Rest</button>
@@ -450,6 +459,8 @@ var DEF = {
   kskip:[],          // ids skipped for the current kickoff
   goal:   {}, gseq: {}, gseqN: 0, gskip: [],   // id -> goals scored (manual credit only, no queue)
   assist: {}, aseq: {}, aseqN: 0, askip: [],   // id -> assists (manual credit only, no queue)
+  gk: null,          // id of whoever is currently in goal (one at a time), or null
+  keep: {},          // id -> seconds spent in goal; a SUBSET of play[id], not separate from it
   useq: {},          // id -> order marker of their last extra job, throw-in OR kickoff (0 = never)
   useqN: 0,
   uskip: [],         // ids skipped for the current extra job
@@ -514,6 +525,10 @@ function advance(state, dt){
   for(i=0;i<state.field.length;i++){ id=state.field[i]; state.play[id]=(state.play[id]||0)+dt; state.stint[id]=(state.stint[id]||0)+dt; }
   for(i=0;i<state.bench.length;i++){ id=state.bench[i]; if(state.out.indexOf(id) !== -1) continue;
     state.rest[id]=(state.rest[id]||0)+dt; state.stint[id]=(state.stint[id]||0)+dt; }
+  /* Goal time is counted on TOP of the play time above, not instead of it — the
+     keeper is still on the field, this just records how much of it was in goal. */
+  if(state.gk && state.field.indexOf(state.gk) !== -1)
+    state.keep[state.gk] = (state.keep[state.gk] || 0) + dt;
 }
 
 function pullRemote(){
@@ -559,7 +574,7 @@ function snap(){
     kick:S.kick, kseq:S.kseq, kseqN:S.kseqN, kskip:S.kskip,
     goal:S.goal, gseq:S.gseq, gseqN:S.gseqN, gskip:S.gskip,
     assist:S.assist, aseq:S.aseq, aseqN:S.aseqN, askip:S.askip,
-    useq:S.useq, useqN:S.useqN, uskip:S.uskip
+    useq:S.useq, useqN:S.useqN, uskip:S.uskip, gk:S.gk
   }));
   if(undoStack.length > 25) undoStack.shift();
 }
@@ -571,7 +586,9 @@ function undo(){
   S.kick=o.kick; S.kseq=o.kseq; S.kseqN=o.kseqN; S.kskip=o.kskip;
   S.goal=o.goal; S.gseq=o.gseq; S.gseqN=o.gseqN; S.gskip=o.gskip;
   S.assist=o.assist; S.aseq=o.aseq; S.aseqN=o.aseqN; S.askip=o.askip;
-  S.useq=o.useq; S.useqN=o.useqN; S.uskip=o.uskip;
+  S.useq=o.useq; S.useqN=o.useqN; S.uskip=o.uskip; S.gk=o.gk;
+  /* keep[] is deliberately NOT restored: those seconds really were spent in goal,
+     same reason play[]/rest[] aren't rolled back either. */
   sel = null; render(); save(); toast("Undone");
 }
 
@@ -671,6 +688,7 @@ function moveTo(id, dest){
   (dest === "field" ? S.field : S.bench).push(id);
   S.stint[id] = 0;
   S.skip = []; S.kskip = []; S.uskip = [];   // a sub ends whatever turn was pending
+  if(dest === "bench" && S.gk === id) S.gk = null;   // nobody keeps goal from the bench
 }
 
 function resetShift(quiet){
@@ -782,6 +800,10 @@ function celebrateRest(btn){
   burstFrom(btn, {glyphs:["💤"], count:4, angleMid:-Math.PI/2, angleSpread:Math.PI*0.3,
     minDist:26, distRange:20, minSize:15, sizeRange:6, spin:30, stagger:0.2, duration:1.3});
 }
+function celebrateGoalie(btn){
+  burstFrom(btn, {glyphs:["🧤","🥅"], count:6, angleMid:-Math.PI/2, angleSpread:Math.PI*1.1,
+    minDist:30, distRange:26, minSize:13, sizeRange:6, spin:220, duration:0.7});
+}
 function celebratePlay(btn){
   burstFrom(btn, {glyphs:["⚡","✨","🏃"], count:8, angleMid:-Math.PI/2, angleSpread:Math.PI*1.2,
     minDist:30, distRange:26, minSize:13, sizeRange:6, spin:300, duration:0.7});
@@ -855,6 +877,7 @@ function playerRow(id, where, rank){
   b.className = "row " + where + (picked ? " sel" : "");
   b.setAttribute("data-id", id);
 
+  var gkTag = (where === "field" && S.gk === id) ? '<i class="tag gk">🧤 goalie</i>' : '';
   var rankTag = "";
   if(rank === 0 && where === "field") rankTag = '<i class="tag off">next off</i>';
   if(rank === 0 && where === "bench") rankTag = '<i class="tag on">next on</i>';
@@ -862,7 +885,7 @@ function playerRow(id, where, rank){
   var turnsTag = '<i class="tag ti">🙌 ' + t + '  ⚽️ ' + (S.kick[id] || 0) +
     (g > 0 ? '  🥅 ' + g : '') + (a > 0 ? '  🎯 ' + a : '') + '</i>';
 
-  b.innerHTML =
+  b.innerHTML = gkTag +
     '<span class="jersey num">' + (p.num ? esc(p.num) : "–") + '</span>' +
     '<span class="pname">' +
       '<span class="name">' + esc(p.name) + '</span>' +
@@ -937,6 +960,8 @@ function render(){
     $("btnSendOn").classList.toggle("hide", sel.from === "field");
     $("selTurnRow").classList.toggle("hide", sel.from !== "field");
     $("selScoreRow").classList.toggle("hide", sel.from !== "field");
+    $("selGkRow").classList.toggle("hide", sel.from !== "field");
+    $("btnGoalie").textContent = (S.gk === sel.id) ? "🧤 Out of goal" : "🧤 Make goalie";
     $("selRestRow").classList.toggle("hide", sel.from !== "field");
   } else sb.classList.remove("show");
 
@@ -1020,18 +1045,24 @@ function renderTeam(){
   var mins = live.slice().sort(function(a,b){ return (S.play[b.id]||0) - (S.play[a.id]||0); });
   var max = Math.max(1, S.play[mins[0].id] || 0);
   var lo  = S.play[mins[mins.length-1].id] || 0;
+  var anyKeep = false;
   mins.forEach(function(p){
-    var v = S.play[p.id] || 0;
+    var v = S.play[p.id] || 0, g = Math.min(S.keep[p.id] || 0, v);
+    if(g > 0) anyKeep = true;
     var d = document.createElement("div");
     d.className = "mrow";
+    /* the orange sits INSIDE the green fill — goal time is part of their total, not extra */
     d.innerHTML = '<span class="mn">' + esc(p.name) + '</span>' +
-                  '<span class="mbar"><i style="width:' + Math.round(v/max*100) + '%"></i></span>' +
-                  '<span class="mt num">' + mmss(v) + '</span>';
+                  '<span class="mbar"><span class="fill" style="width:' + Math.round(v/max*100) + '%">' +
+                    (g > 0 ? '<i class="gk" style="width:' + Math.round(g/(v||1)*100) + '%"></i>' : '') +
+                  '</span></span>' +
+                  '<span class="mt num">' + mmss(v) + (g > 0 ? ' <em>' + mmss(g) + '</em>' : '') + '</span>';
     ml.appendChild(d);
   });
   var sp = document.createElement("div");
   sp.className = "hint";
-  sp.innerHTML = "Gap between most and least played: <b>" + mmss(max - lo) + "</b>";
+  sp.innerHTML = "Gap between most and least played: <b>" + mmss(max - lo) + "</b>" +
+                 (anyKeep ? "<br>Orange is time spent in goal, counted inside their total." : "");
   ml.appendChild(sp);
 }
 
@@ -1086,6 +1117,21 @@ function movePlayer(id, from, triggerEl){
   if(triggerEl){ if(dest === "bench") celebrateRest(triggerEl); else celebratePlay(triggerEl); }
   toast(who + (dest === "bench" ? " came off" : " went on"), "Undo", undo);
 }
+/* Having a goalie is entirely optional — S.gk just stays null and everything
+   behaves exactly as it did before the feature existed. */
+function setGoalie(triggerEl){
+  if(!sel) return;
+  var id = sel.id, was = S.gk;
+  snap();
+  S.gk = (was === id) ? null : id;      // tapping the current keeper takes them out of goal
+  sel = null;
+  render(); save();
+  if(S.gk && triggerEl) celebrateGoalie(triggerEl);
+  toast(S.gk
+      ? nameOf(id) + " is in goal" + (was && was !== id ? " (" + nameOf(was) + " comes out)" : "")
+      : nameOf(id) + " is out of goal", "Undo", undo);
+}
+
 function moveAlone(triggerEl){
   if(!sel) return;
   movePlayer(sel.id, sel.from, triggerEl);
@@ -1144,6 +1190,7 @@ $("btnKickTook").addEventListener("click", function(){ tookTurn("kick", $("btnKi
 $("btnUpSkip").addEventListener("click", skipTurn);
 $("btnSendOn").addEventListener("click", function(){ moveAlone($("btnSendOn")); });
 $("btnRest").addEventListener("click", function(){ moveAlone($("btnRest")); });
+$("btnGoalie").addEventListener("click", function(){ setGoalie($("btnGoalie")); });
 $("btnCancelSel").addEventListener("click", function(){ sel = null; render(); });
 $("btnBulkMode").addEventListener("click", function(){ setBulkMode(!bulkMode); });
 $("btnBulkDone").addEventListener("click", function(){ setBulkMode(false); });
@@ -1190,7 +1237,7 @@ function addPlayer(){
   var id = "p" + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
   S.roster.push({ id:id, name:name, num:num });
   S.play[id]=0; S.rest[id]=0; S.stint[id]=0; S.thr[id]=0; S.seq[id]=0; S.kick[id]=0; S.kseq[id]=0;
-  S.goal[id]=0; S.gseq[id]=0; S.assist[id]=0; S.aseq[id]=0; S.useq[id]=0;
+  S.goal[id]=0; S.gseq[id]=0; S.assist[id]=0; S.aseq[id]=0; S.useq[id]=0; S.keep[id]=0;
   S.bench.push(id);
   $("inName").value = ""; $("inNum").value = "";
   render(); save();
@@ -1267,7 +1314,7 @@ $("rosterList").addEventListener("click", function(e){
       play: S.play[del], rest: S.rest[del], stint: S.stint[del],
       thr: S.thr[del], seq: S.seq[del], kick: S.kick[del], kseq: S.kseq[del],
       goal: S.goal[del], gseq: S.gseq[del], assist: S.assist[del], aseq: S.aseq[del],
-      useq: S.useq[del]
+      useq: S.useq[del], keep: S.keep[del], wasGk: S.gk === del
     };
     S.roster = S.roster.filter(function(x){ return x.id !== del; });
     pull(S.field, del); pull(S.bench, del); pull(S.out, del); pull(S.skip, del); pull(S.kskip, del);
@@ -1275,7 +1322,8 @@ $("rosterList").addEventListener("click", function(e){
     delete S.play[del]; delete S.rest[del]; delete S.stint[del];
     delete S.thr[del]; delete S.seq[del]; delete S.kick[del]; delete S.kseq[del];
     delete S.goal[del]; delete S.gseq[del]; delete S.assist[del]; delete S.aseq[del];
-    delete S.useq[del];
+    delete S.useq[del]; delete S.keep[del];
+    if(S.gk === del) S.gk = null;
     if(sel && sel.id === del) sel = null;
     render(); save();
     toast("Removed " + p.name, "Undo", function(){ undeletePlayer(snapDel); });
@@ -1288,7 +1336,8 @@ function undeletePlayer(s){
   S.play[id]=s.play; S.rest[id]=s.rest; S.stint[id]=s.stint;
   S.thr[id]=s.thr; S.seq[id]=s.seq; S.kick[id]=s.kick; S.kseq[id]=s.kseq;
   S.goal[id]=s.goal; S.gseq[id]=s.gseq; S.assist[id]=s.assist; S.aseq[id]=s.aseq;
-  S.useq[id]=s.useq;
+  S.useq[id]=s.useq; S.keep[id]=s.keep;
+  if(s.wasGk) S.gk = id;
   if(s.wasOut) S.out.push(id);
   if(s.wasField !== -1) S.field.splice(Math.min(s.wasField, S.field.length), 0, id);
   else if(s.wasBench !== -1) S.bench.splice(Math.min(s.wasBench, S.bench.length), 0, id);
@@ -1346,6 +1395,7 @@ function newGame(){
   S.goal={}; S.gseq={}; S.gseqN=0; S.gskip=[];
   S.assist={}; S.aseq={}; S.aseqN=0; S.askip=[];
   S.useq={}; S.useqN=0; S.uskip=[];
+  S.gk=null; S.keep={};
   S.field=[]; S.bench = S.roster.map(function(p){ return p.id; });
   S.gameSec=0; S.halfSec=0; S.half=1; S.shiftSec=S.shiftLen; S.shiftNo=1;
   S.running=false; S.alerted=false; S.nag=0; S.halfOver=false; S.phase="pre";
